@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:provider/provider.dart';
 import 'screens/home_screen.dart';
+import 'utils/language_provider.dart';
+import 'constants/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,7 +15,17 @@ void main() async {
   // Initialize Hive
   await Hive.initFlutter();
   
-  runApp(const EKrishiApp());
+  // Open settings box
+  await Hive.openBox('settings');
+  
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => LanguageProvider()),
+      ],
+      child: const EKrishiApp(),
+    ),
+  );
 }
 
 class EKrishiApp extends StatelessWidget {
@@ -23,10 +36,7 @@ class EKrishiApp extends StatelessWidget {
     return MaterialApp(
       title: 'E-Krishi',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.lightTheme,
       home: const HomeScreen(),
     );
   }
