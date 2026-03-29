@@ -84,5 +84,17 @@ class AppStrings {
       'en': 'Location',
       'kn': 'ಸ್ಥಳ',
     },
+    'point_camera': {
+      'en': 'Point camera at produce',
+      'kn': 'ಬೆಳೆಯ ಕಡೆ ಕ್ಯಾಮೆರಾ ತೋರಿಸಿ',
+    },
+    'camera_permission_required': {
+      'en': 'Camera permission is required',
+      'kn': 'ಕ್ಯಾಮೆರಾ ಅನುಮತಿ ಅಗತ್ಯವಿದೆ',
+    },
+    'grant_permission': {
+      'en': 'Grant Permission',
+      'kn': 'ಅನುಮತಿ ನೀಡಿ',
+    },
   };
 }
