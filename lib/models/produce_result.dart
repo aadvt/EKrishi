@@ -5,6 +5,8 @@ class ProduceResult {
   final double confidence;
   final String category; // 'vegetable' or 'fruit'
   final String ripeness; // 'fresh', 'ripe', 'overripe'
+  final String grade; // 'A', 'B', or 'C'
+  final String gradeReasoning; // what Gemini observed about the produce
   final bool lowConfidence; // true if confidence < 0.70
 
   // Pricing fields (from Gemini)
@@ -23,6 +25,8 @@ class ProduceResult {
     required this.confidence,
     required this.category,
     required this.ripeness,
+    required this.grade,
+    required this.gradeReasoning,
     required this.lowConfidence,
     required this.priceMinPerKg,
     required this.priceMaxPerKg,
@@ -44,6 +48,8 @@ class ProduceResult {
       confidence: confidence,
       category: json['category'] ?? 'other',
       ripeness: json['ripeness'] ?? 'unknown',
+      grade: json['grade'] ?? 'B',
+      gradeReasoning: json['grade_reasoning'] ?? '',
       lowConfidence: confidence < 0.70,
       priceMinPerKg: (json['price_min_per_kg'] as num).toDouble(),
       priceMaxPerKg: (json['price_max_per_kg'] as num).toDouble(),
@@ -63,6 +69,8 @@ class ProduceResult {
       'confidence': confidence,
       'category': category,
       'ripeness': ripeness,
+      'grade': grade,
+      'grade_reasoning': gradeReasoning,
       'low_confidence': lowConfidence,
       'price_min_per_kg': priceMinPerKg,
       'price_max_per_kg': priceMaxPerKg,

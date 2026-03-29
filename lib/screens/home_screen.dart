@@ -25,7 +25,9 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _initConnectivity();
-    _connectivitySubscription = _connectivity.onConnectivityChanged.listen(_updateConnectionStatus);
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen(
+      _updateConnectionStatus,
+    );
   }
 
   @override
@@ -50,7 +52,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _updateConnectionStatus(List<ConnectivityResult> result) async {
     setState(() {
-      _connectionStatus = result.isEmpty ? ConnectivityResult.none : result.first;
+      _connectionStatus = result.isEmpty
+          ? ConnectivityResult.none
+          : result.first;
     });
   }
 
@@ -83,7 +87,10 @@ class _HomeScreenState extends State<HomeScreen> {
               splashColor: Colors.black.withValues(alpha: 0.04),
               onTap: () => languageProvider.toggleLanguage(),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(20),
@@ -157,7 +164,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         onTap: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => const CameraScreen()),
+                            MaterialPageRoute(
+                              builder: (context) => const CameraScreen(),
+                            ),
                           );
                         },
                         child: Container(
@@ -170,11 +179,20 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.camera_alt_rounded, size: 48, color: AppColors.accentGreen),
+                              const Icon(
+                                Icons.camera_alt_rounded,
+                                size: 48,
+                                color: AppColors.accentGreen,
+                              ),
                               const SizedBox(height: 12),
                               Text(
-                                isKn ? 'ಬೆಳೆ ಸ್ಕ್ಯಾನ್ ಮಾಡಲು ಟ್ಯಾಪ್ ಮಾಡಿ' : 'Tap to scan produce',
-                                style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                                isKn
+                                    ? 'ಬೆಳೆ ಸ್ಕ್ಯಾನ್ ಮಾಡಲು ಟ್ಯಾಪ್ ಮಾಡಿ'
+                                    : 'Tap to scan produce',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: AppColors.textSecondary,
+                                ),
                               ),
                             ],
                           ),
@@ -185,7 +203,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         onPressed: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => const CameraScreen()),
+                            MaterialPageRoute(
+                              builder: (context) => const CameraScreen(),
+                            ),
                           );
                         },
                         child: Text(languageProvider.translate('scan_produce')),
@@ -195,7 +215,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         onPressed: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => const HistoryScreen()),
+                            MaterialPageRoute(
+                              builder: (context) => const HistoryScreen(),
+                            ),
                           );
                         },
                         icon: const Icon(Icons.history_rounded),
@@ -208,9 +230,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 24),
                 Center(
                   child: Text(
-                    isKn ? 'AI ಮಾರುಕಟ್ಟೆ ವಿಶ್ಲೇಷಣೆಯಿಂದ ಬೆಲೆಗಳು' : 'Prices sourced from AI market analysis',
+                    isKn
+                        ? 'AI ಮಾರುಕಟ್ಟೆ ವಿಶ್ಲೇಷಣೆಯಿಂದ ಬೆಲೆಗಳು'
+                        : 'Prices sourced from AI market analysis',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 12, color: AppColors.textTertiary),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textTertiary,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 32),
@@ -262,7 +289,10 @@ class _MiniStatCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             label,
-            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
           ),
         ],
       ),

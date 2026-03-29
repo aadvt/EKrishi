@@ -86,6 +86,7 @@ class _ResultScreenState extends State<ResultScreen> {
             _ProduceHeroCard(
               imageFile: widget.imageFile,
               ripeness: widget.produceResult.ripeness,
+              grade: widget.produceResult.grade,
               produceName: widget.produceResult.nameEnglish,
               produceNameKannada: widget.produceResult.nameKannada,
             ),
@@ -106,7 +107,10 @@ class _ResultScreenState extends State<ResultScreen> {
               isKn: isKn,
             ),
             const SizedBox(height: 12),
-            _ReasoningCard(reasoning: widget.produceResult.priceReasoning),
+            _ReasoningCard(
+              priceReasoning: widget.produceResult.priceReasoning,
+              gradeReasoning: widget.produceResult.gradeReasoning,
+            ),
             const SizedBox(height: 12),
             _ConfidenceRow(confidence: widget.produceResult.priceConfidence, isKn: isKn),
             const SizedBox(height: 24),
@@ -132,19 +136,22 @@ class _ResultScreenState extends State<ResultScreen> {
 class _ProduceHeroCard extends StatelessWidget {
   final File imageFile;
   final String ripeness;
+  final String grade;
   final String produceName;
   final String produceNameKannada;
 
   const _ProduceHeroCard({
     required this.imageFile,
     required this.ripeness,
+    required this.grade,
     required this.produceName,
     required this.produceNameKannada,
   });
 
   @override
   Widget build(BuildContext context) {
-    final badge = _ripenessBadge(ripeness);
+    final ripenessBadge = _ripenessBadge(ripeness);
+    final gradeBadge = _gradeBadge(grade);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
@@ -174,20 +181,40 @@ class _ProduceHeroCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: badge.background,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      badge.label,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: badge.foreground,
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: gradeBadge.background,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          gradeBadge.label,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: gradeBadge.foreground,
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: ripenessBadge.background,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          ripenessBadge.label,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: ripenessBadge.foreground,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 6),
                   Text(
@@ -220,23 +247,46 @@ class _ProduceHeroCard extends StatelessWidget {
     );
   }
 
-  _RipenessBadgeStyle _ripenessBadge(String value) {
+  _BadgeStyle _gradeBadge(String value) {
+    final v = value.toUpperCase().trim();
+    if (v == 'A') {
+      return const _BadgeStyle(
+        label: 'Grade A',
+        background: Color(0xFFD8F3DC),
+        foreground: Color(0xFF2D6A4F),
+      );
+    }
+    if (v == 'C') {
+      return const _BadgeStyle(
+        label: 'Grade C',
+        background: Color(0xFFFFEBEE),
+        foreground: Color(0xFFE63946),
+      );
+    }
+    return const _BadgeStyle(
+      label: 'Grade B',
+      background: Color(0xFFFFF3E0),
+      foreground: Color(0xFFF4A261),
+    );
+  }
+
+  _BadgeStyle _ripenessBadge(String value) {
     final v = value.toLowerCase().trim();
     if (v == 'ripe') {
-      return const _RipenessBadgeStyle(
+      return const _BadgeStyle(
         label: 'ripe',
         background: Color(0xFFFFF3E0),
         foreground: AppColors.warning,
       );
     }
     if (v == 'overripe') {
-      return const _RipenessBadgeStyle(
+      return const _BadgeStyle(
         label: 'overripe',
         background: Color(0xFFFFEBEE),
         foreground: AppColors.error,
       );
     }
-    return const _RipenessBadgeStyle(
+    return const _BadgeStyle(
       label: 'fresh',
       background: AppColors.softGreen,
       foreground: AppColors.accentGreen,
@@ -244,12 +294,12 @@ class _ProduceHeroCard extends StatelessWidget {
   }
 }
 
-class _RipenessBadgeStyle {
+class _BadgeStyle {
   final String label;
   final Color background;
   final Color foreground;
 
-  const _RipenessBadgeStyle({
+  const _BadgeStyle({
     required this.label,
     required this.background,
     required this.foreground,
@@ -434,13 +484,20 @@ class _PriceRow extends StatelessWidget {
 }
 
 class _ReasoningCard extends StatelessWidget {
-  final String reasoning;
+  final String priceReasoning;
+  final String gradeReasoning;
 
-  const _ReasoningCard({required this.reasoning});
+  const _ReasoningCard({
+    required this.priceReasoning,
+    required this.gradeReasoning,
+  });
 
   @override
   Widget build(BuildContext context) {
-    if (reasoning.trim().isEmpty) return const SizedBox.shrink();
+    final hasPriceRea = priceReasoning.trim().isNotEmpty;
+    final hasGradeRea = gradeReasoning.trim().isNotEmpty;
+
+    if (!hasPriceRea && !hasGradeRea) return const SizedBox.shrink();
 
     return Container(
       width: double.infinity,
@@ -457,7 +514,7 @@ class _ReasoningCard extends StatelessWidget {
               Icon(Icons.info_outline_rounded, size: 14, color: AppColors.textTertiary),
               SizedBox(width: 6),
               Text(
-                'Market insight',
+                'Quality & Market Insight',
                 style: TextStyle(
                   fontSize: 12,
                   color: AppColors.textTertiary,
@@ -466,16 +523,29 @@ class _ReasoningCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            reasoning,
-            style: const TextStyle(
-              fontSize: 14,
-              color: AppColors.textSecondary,
-              height: 1.5,
-              fontStyle: FontStyle.italic,
+          const SizedBox(height: 12),
+          if (hasGradeRea) ...[
+            Text(
+              '🔍 $gradeReasoning',
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+                height: 1.5,
+                fontStyle: FontStyle.italic,
+              ),
             ),
-          ),
+            const SizedBox(height: 4),
+          ],
+          if (hasPriceRea)
+            Text(
+              '📈 $priceReasoning',
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+                height: 1.5,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
         ],
       ),
     );

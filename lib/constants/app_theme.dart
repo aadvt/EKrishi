@@ -5,7 +5,8 @@ import 'app_colors.dart';
 
 class AppTheme {
   static ThemeData get lightTheme {
-    final isApple = defaultTargetPlatform == TargetPlatform.iOS ||
+    final isApple =
+        defaultTargetPlatform == TargetPlatform.iOS ||
         defaultTargetPlatform == TargetPlatform.macOS;
 
     final interTextTheme = GoogleFonts.interTextTheme();
@@ -76,10 +77,7 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
-          textStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           elevation: 0,
           shadowColor: Colors.transparent,
         ),
@@ -99,7 +97,10 @@ class AppTheme {
         fillColor: AppColors.surface,
         hintStyle: const TextStyle(color: AppColors.textTertiary),
         labelStyle: const TextStyle(color: AppColors.textSecondary),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: AppColors.border),
