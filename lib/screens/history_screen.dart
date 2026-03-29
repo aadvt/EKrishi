@@ -1,11 +1,13 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+
+import '../constants/app_colors.dart';
 import '../models/scan_history.dart';
 import '../utils/language_provider.dart';
-import '../constants/app_colors.dart';
 import 'camera_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -45,7 +47,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             },
             child: Text(
               lang.translate('clear'),
-              style: const TextStyle(color: AppColors.errorRed),
+              style: const TextStyle(color: AppColors.error),
             ),
           ),
         ],
@@ -55,130 +57,100 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   void _showDetailBottomSheet(ScanHistory history) {
     final lang = Provider.of<LanguageProvider>(context, listen: false);
+    final isKn = lang.isKannada;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        maxChildSize: 0.9,
-        minChildSize: 0.5,
-        expand: false,
-        builder: (context, scrollController) => SingleChildScrollView(
-          controller: scrollController,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Top Image
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                child: Hero(
-                  tag: history.id,
-                  child: Image.file(
-                    File(history.imagePath),
-                    height: 250,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      height: 250,
-                      color: Colors.grey.shade200,
-                      child: const Icon(Icons.broken_image, size: 64, color: AppColors.textGrey),
+      builder: (context) {
+        return SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            padding: EdgeInsets.only(
+              left: 24,
+              right: 24,
+              top: 12,
+              bottom: 24 + MediaQuery.of(context).padding.bottom,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      history.produceNameEnglish,
-                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      history.produceNameKannada,
-                      style: const TextStyle(fontSize: 18, color: AppColors.textGrey),
-                    ),
-                    const Divider(height: 32),
-                    _buildDetailRow(Icons.location_on, '${lang.translate('location')}: ${history.district}'),
-                    _buildDetailRow(Icons.calendar_today, DateFormat('dd MMM yyyy, hh:mm a').format(history.scannedAt)),
-                    const SizedBox(height: 24),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryGreen.withAlpha(26), // 0.1 * 255
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        children: [
-                          _buildPriceRowSmall(lang.translate('min_price'), history.minPrice, Colors.green),
-                          const Divider(),
-                          _buildPriceRowSmall(lang.translate('fair_price'), history.fairPrice, AppColors.primaryGreen, isBold: true),
-                          const Divider(),
-                          _buildPriceRowSmall(lang.translate('max_price'), history.maxPrice, AppColors.errorRed),
-                        ],
+                const SizedBox(height: 20),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: SizedBox(
+                    height: 200,
+                    width: double.infinity,
+                    child: Image.file(
+                      File(history.imagePath),
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        color: AppColors.softGreen,
+                        alignment: Alignment.center,
+                        child: const Icon(Icons.eco_rounded, size: 40, color: AppColors.accentGreen),
                       ),
                     ),
-                    const SizedBox(height: 32),
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const CameraScreen()),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size(double.infinity, 56),
-                        backgroundColor: AppColors.primaryGreen,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: Text(
-                        lang.translate('scan_again'),
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 20),
+                Text(
+                  history.produceNameEnglish,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  history.produceNameKannada,
+                  style: const TextStyle(fontSize: 16, color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 16),
+                _PriceDetailsCard(
+                  minPrice: history.minPrice,
+                  fairPrice: history.fairPrice,
+                  maxPrice: history.maxPrice,
+                  isKn: isKn,
+                  minLabel: lang.translate('min_price'),
+                  fairLabel: lang.translate('fair_price'),
+                  maxLabel: lang.translate('max_price'),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  '${history.district} · ${DateFormat('dd MMM, hh:mm a').format(history.scannedAt)}',
+                  style: const TextStyle(fontSize: 12, color: AppColors.textTertiary),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const CameraScreen()),
+                    );
+                  },
+                  child: Text(lang.translate('scan_again')),
+                ),
+              ],
+            ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPriceRowSmall(String label, double price, Color color, {bool isBold = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: TextStyle(fontSize: 14, fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
-          Text(
-            '₹${price.toStringAsFixed(0)}/kg',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDetailRow(IconData icon, String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: AppColors.textGrey),
-          const SizedBox(width: 12),
-          Text(text, style: const TextStyle(fontSize: 16, color: AppColors.textDark)),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -186,12 +158,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget build(BuildContext context) {
     final lang = Provider.of<LanguageProvider>(context);
 
-    // Watch box for changes
     return ValueListenableBuilder(
       valueListenable: _historyBox.listenable(),
       builder: (context, Box box, _) {
         final List histories = box.values.toList();
-        // Sort DESC
         histories.sort((a, b) {
           final historyA = a is ScanHistory ? a : ScanHistory.fromJson(Map<String, dynamic>.from(a));
           final historyB = b is ScanHistory ? b : ScanHistory.fromJson(Map<String, dynamic>.from(b));
@@ -199,110 +169,286 @@ class _HistoryScreenState extends State<HistoryScreen> {
         });
 
         return Scaffold(
-          backgroundColor: AppColors.backgroundWhite,
+          backgroundColor: AppColors.background,
           appBar: AppBar(
-            title: Text(lang.translate('price_history')),
-            backgroundColor: Colors.white,
-            foregroundColor: AppColors.textDark,
+            backgroundColor: Colors.transparent,
             elevation: 0,
+            scrolledUnderElevation: 0,
+            title: Text(lang.isKannada ? 'ಇತಿಹಾಸ' : 'History'),
             actions: [
               if (histories.isNotEmpty)
                 TextButton(
                   onPressed: _confirmClear,
-                  child: Text(
-                    lang.translate('clear'),
-                    style: const TextStyle(color: AppColors.errorRed, fontWeight: FontWeight.bold),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.error,
+                    textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                   ),
+                  child: Text(lang.translate('clear')),
                 ),
+              const SizedBox(width: 8),
             ],
           ),
           body: histories.isEmpty
-              ? _buildEmptyState(lang)
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: histories.length,
+              ? _EmptyHistoryState(subtitle: lang.translate('history_empty_subtitle'), title: lang.translate('no_history'))
+              : ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  itemCount: histories.length + 1,
+                  separatorBuilder: (context, index) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
-                    final dynamic data = histories[index];
+                    if (index == 0) {
+                      final today = DateFormat('dd MMM yyyy').format(DateTime.now()).toUpperCase();
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Text(
+                          today,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textTertiary,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      );
+                    }
+
+                    final dynamic data = histories[index - 1];
                     final history = data is ScanHistory ? data : ScanHistory.fromJson(Map<String, dynamic>.from(data));
-                    return _buildHistoryCard(history, lang);
+                    return _HistoryCard(
+                      history: history,
+                      isKn: lang.isKannada,
+                      onTap: () => _showDetailBottomSheet(history),
+                    );
                   },
                 ),
         );
       },
     );
   }
+}
 
-  Widget _buildEmptyState(LanguageProvider lang) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.history, size: 80, color: AppColors.textGrey),
-          const SizedBox(height: 16),
-          Text(
-            lang.translate('no_history'),
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textDark),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            lang.translate('history_empty_subtitle'),
-            style: const TextStyle(color: AppColors.textGrey, fontSize: 14),
-          ),
-        ],
-      ),
-    );
-  }
+class _EmptyHistoryState extends StatelessWidget {
+  final String title;
+  final String subtitle;
 
-  Widget _buildHistoryCard(ScanHistory history, LanguageProvider lang) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 2,
-      shadowColor: Colors.black12,
-      child: ListTile(
-        onTap: () => _showDetailBottomSheet(history),
-        contentPadding: const EdgeInsets.all(12),
-        leading: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Hero(
-            tag: history.id,
-            child: Image.file(
-              File(history.imagePath),
-              width: 56,
-              height: 56,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
-                width: 56,
-                height: 56,
-                color: Colors.grey.shade200,
-                child: const Icon(Icons.image, color: AppColors.textGrey),
+  const _EmptyHistoryState({required this.title, required this.subtitle});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 80),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.history_rounded, size: 64, color: AppColors.border),
+              const SizedBox(height: 16),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
               ),
-            ),
-          ),
-        ),
-        title: Text(
-          lang.isKannada ? history.produceNameKannada : history.produceNameEnglish,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(history.district, style: const TextStyle(fontSize: 12)),
-            Text(
-              DateFormat('dd MMM yyyy, hh:mm a').format(history.scannedAt),
-              style: const TextStyle(fontSize: 11, color: AppColors.textGrey),
-            ),
-          ],
-        ),
-        trailing: Text(
-          '₹${history.fairPrice.toStringAsFixed(0)}/kg',
-          style: const TextStyle(
-            color: AppColors.primaryGreen,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
+              const SizedBox(height: 8),
+              Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 15, color: AppColors.textSecondary, height: 1.5),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 }
+
+class _HistoryCard extends StatelessWidget {
+  final ScanHistory history;
+  final bool isKn;
+  final VoidCallback onTap;
+
+  const _HistoryCard({
+    required this.history,
+    required this.isKn,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final dateText = DateFormat('dd MMM, hh:mm a').format(history.scannedAt);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        splashColor: Colors.black.withValues(alpha: 0.04),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: SizedBox(
+                  width: 56,
+                  height: 56,
+                  child: Image.file(
+                    File(history.imagePath),
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      color: AppColors.softGreen,
+                      alignment: Alignment.center,
+                      child: const Icon(Icons.eco_rounded, color: AppColors.accentGreen),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isKn ? history.produceNameKannada : history.produceNameEnglish,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${history.district} · $dateText',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '₹${history.fairPrice.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primaryGreen,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text('/kg', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PriceDetailsCard extends StatelessWidget {
+  final String minLabel;
+  final String fairLabel;
+  final String maxLabel;
+  final double minPrice;
+  final double fairPrice;
+  final double maxPrice;
+  final bool isKn;
+
+  const _PriceDetailsCard({
+    required this.minLabel,
+    required this.fairLabel,
+    required this.maxLabel,
+    required this.minPrice,
+    required this.fairPrice,
+    required this.maxPrice,
+    required this.isKn,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        children: [
+          _PriceRow(dotColor: AppColors.accentGreen, label: minLabel, caption: null, price: minPrice),
+          const Divider(height: 1),
+          _PriceRow(
+            dotColor: AppColors.warning,
+            label: fairLabel,
+            caption: isKn ? 'ಶಿಫಾರಸು ಮಾಡಿದ ಮಾರಾಟ ಬೆಲೆ' : 'Recommended selling price',
+            price: fairPrice,
+          ),
+          const Divider(height: 1),
+          _PriceRow(dotColor: AppColors.info, label: maxLabel, caption: null, price: maxPrice),
+        ],
+      ),
+    );
+  }
+}
+
+class _PriceRow extends StatelessWidget {
+  final Color dotColor;
+  final String label;
+  final String? caption;
+  final double price;
+
+  const _PriceRow({
+    required this.dotColor,
+    required this.label,
+    required this.caption,
+    required this.price,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      child: Row(
+        children: [
+          Container(width: 8, height: 8, decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+                if (caption != null) ...[
+                  const SizedBox(height: 2),
+                  Text(caption!, style: const TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                ],
+              ],
+            ),
+          ),
+          Text(
+            '₹${price.toStringAsFixed(0)}',
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+          ),
+          const SizedBox(width: 4),
+          const Text('/kg', style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+        ],
+      ),
+    );
+  }
+}
+

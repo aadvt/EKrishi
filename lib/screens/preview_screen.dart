@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../utils/language_provider.dart';
@@ -8,7 +9,6 @@ import '../services/location_service.dart';
 import '../models/produce_result.dart';
 import '../models/location_result.dart';
 import '../utils/exceptions.dart';
-import '../widgets/loading_widget.dart';
 import 'result_screen.dart';
 
 class PreviewScreen extends StatefulWidget {
@@ -20,10 +20,26 @@ class PreviewScreen extends StatefulWidget {
   State<PreviewScreen> createState() => _PreviewScreenState();
 }
 
-class _PreviewScreenState extends State<PreviewScreen> {
+class _PreviewScreenState extends State<PreviewScreen> with SingleTickerProviderStateMixin {
   bool _isAnalyzing = false;
   final ProduceService _produceService = ProduceService();
   final LocationService _locationService = LocationService();
+  late final AnimationController _pulseController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
 
   Future<void> _analyseProduce() async {
     setState(() => _isAnalyzing = true);
@@ -91,77 +107,106 @@ class _PreviewScreenState extends State<PreviewScreen> {
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.background,
       body: Stack(
         children: [
           Column(
             children: [
-              // TOP HALF: Captured Image
+              // TOP: Captured Image (60%)
               SizedBox(
-                height: size.height * 0.55,
+                height: size.height * 0.60,
                 width: double.infinity,
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(16),
-                    bottomRight: Radius.circular(16),
-                  ),
-                  child: Image.file(
-                    widget.imageFile,
-                    fit: BoxFit.cover,
-                  ),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ClipRRect(
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(28),
+                        bottomRight: Radius.circular(28),
+                      ),
+                      child: Image.file(widget.imageFile, fit: BoxFit.cover),
+                    ),
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: IgnorePointer(
+                        child: Container(
+                          height: 120,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.transparent,
+                                Colors.black.withValues(alpha: 0.35),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              
-              // BOTTOM HALF: Action Card
+
+              // BOTTOM PANEL (40%)
               Expanded(
                 child: Container(
                   width: double.infinity,
-                  color: AppColors.backgroundWhite,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                  decoration: const BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceAlt,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          languageProvider.isKannada ? 'ಫೋಟೋ ಪರಿಶೀಲಿಸಿ' : 'Review Photo',
+                          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       Text(
-                        languageProvider.translate('analyse_title'),
+                        languageProvider.isKannada ? 'ಬೆಳೆ ಸ್ಪಷ್ಟವಾಗಿ ಕಾಣಿಸುತ್ತಿದೆಯೇ?' : 'Is the produce clearly visible?',
                         style: const TextStyle(
                           fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textDark,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        languageProvider.translate('analyse_subtitle'),
+                        languageProvider.isKannada
+                            ? 'ಉತ್ತಮ ಫಲಿತಾಂಶಕ್ಕಾಗಿ, ಬೆಳೆ ಚಿತ್ರದಲ್ಲಿ ಹೆಚ್ಚಿನ ಭಾಗವನ್ನು ತುಂಬುವಂತೆ ನೋಡಿಕೊಳ್ಳಿ.'
+                            : 'Make sure the item fills most of the frame for the best result.',
                         style: const TextStyle(
                           fontSize: 14,
-                          color: AppColors.textGrey,
+                          color: AppColors.textSecondary,
+                          height: 1.5,
                         ),
                       ),
                       const Spacer(),
-                      
-                      // Action Buttons
-                      Column(
-                        children: [
-                          OutlinedButton(
-                            onPressed: _isAnalyzing ? null : () => Navigator.pop(context),
-                            style: OutlinedButton.styleFrom(
-                              minimumSize: const Size(double.infinity, 56),
-                              side: const BorderSide(color: AppColors.primaryGreen),
-                              foregroundColor: AppColors.primaryGreen,
-                            ),
-                            child: Text(languageProvider.translate('retake')),
-                          ),
-                          const SizedBox(height: 16),
-                          ElevatedButton(
-                            onPressed: _isAnalyzing ? null : _analyseProduce,
-                            style: ElevatedButton.styleFrom(
-                              minimumSize: const Size(double.infinity, 56),
-                              backgroundColor: AppColors.primaryGreen,
-                              foregroundColor: Colors.white,
-                            ),
-                            child: Text(languageProvider.translate('analyse')),
-                          ),
-                        ],
+                      ElevatedButton(
+                        onPressed: _isAnalyzing ? null : _analyseProduce,
+                        child: Text(languageProvider.translate('analyse')),
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton(
+                        onPressed: _isAnalyzing ? null : () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(double.infinity, 52),
+                          foregroundColor: AppColors.textSecondary,
+                          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                        ),
+                        child: Text(languageProvider.translate('retake')),
                       ),
                     ],
                   ),
@@ -170,26 +215,92 @@ class _PreviewScreenState extends State<PreviewScreen> {
             ],
           ),
 
-          // LOADING OVERLAY
-          if (_isAnalyzing)
-            Container(
-              color: Colors.black.withAlpha(153), // 0.6 * 255
-              width: double.infinity,
-              height: size.height * 0.55,
-              child: LoadingWidget(
-                message: languageProvider.translate('identifying'),
-              ),
-            ),
-            
-          // Close button overlay for convenience
+          // Close button overlay
           Positioned(
             top: MediaQuery.of(context).padding.top + 10,
-            left: 10,
-            child: IconButton(
-              icon: const Icon(Icons.close, color: Colors.white, size: 30),
-              onPressed: _isAnalyzing ? null : () => Navigator.pop(context),
+            left: 16,
+            child: ClipOval(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Material(
+                  color: Colors.black.withValues(alpha: 0.22),
+                  child: InkWell(
+                    onTap: _isAnalyzing ? null : () => Navigator.pop(context),
+                    splashColor: Colors.white.withValues(alpha: 0.10),
+                    child: const SizedBox(
+                      width: 44,
+                      height: 44,
+                      child: Center(
+                        child: Icon(Icons.close_rounded, color: Colors.white, size: 22),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
+
+          // LOADING OVERLAY (frosted glass)
+          if (_isAnalyzing)
+            Positioned.fill(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: Container(
+                  color: Colors.white.withValues(alpha: 0.85),
+                  alignment: Alignment.center,
+                  child: AnimatedBuilder(
+                    animation: _pulseController,
+                    builder: (context, _) {
+                      final t = Curves.easeInOut.transform(_pulseController.value);
+                      final outerScale = 0.95 + (0.08 * t);
+
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Transform.scale(
+                            scale: outerScale,
+                            child: Container(
+                              width: 80,
+                              height: 80,
+                              decoration: const BoxDecoration(
+                                color: AppColors.softGreen,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child: Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.accentGreen,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          Text(
+                            languageProvider.translate('identifying'),
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            languageProvider.isKannada
+                                ? 'ಪ್ರಸ್ತುತ ಮಾರುಕಟ್ಟೆ ಬೆಲೆಗಳನ್ನು ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ...'
+                                : 'Checking current market prices...',
+                            style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

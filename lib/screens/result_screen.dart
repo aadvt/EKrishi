@@ -1,14 +1,15 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'camera_screen.dart';
-import 'home_screen.dart';
-import '../models/produce_result.dart';
+import 'package:provider/provider.dart';
+
+import '../constants/app_colors.dart';
 import '../models/location_result.dart';
+import '../models/produce_result.dart';
 import '../models/scan_history.dart';
 import '../utils/language_provider.dart';
-import '../constants/app_colors.dart';
+import 'camera_screen.dart';
 
 class ResultScreen extends StatefulWidget {
   final File imageFile;
@@ -59,149 +60,157 @@ class _ResultScreenState extends State<ResultScreen> {
     final isKn = languageProvider.isKannada;
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundWhite,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(languageProvider.translate('price_estimate')),
-        backgroundColor: Colors.white,
-        foregroundColor: AppColors.textDark,
+        backgroundColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        title: Text(isKn ? 'ಬೆಲೆ ಫಲಿತಾಂಶ' : 'Price Result'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share_rounded, color: AppColors.textSecondary),
+            onPressed: () {},
+          ),
+        ],
       ),
       body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // AI Info Banner
+            const SizedBox(height: 8),
+            _ProduceHeroCard(
+              imageFile: widget.imageFile,
+              ripeness: widget.produceResult.ripeness,
+              produceName: widget.produceResult.nameEnglish,
+              produceNameKannada: widget.produceResult.nameKannada,
+            ),
+            const SizedBox(height: 16),
+            _AiEstimateChip(isKn: isKn),
+            const SizedBox(height: 16),
+            _LocationRow(
+              district: widget.locationResult.district,
+              state: widget.locationResult.state,
+              isManual: widget.locationResult.isManualOverride,
+              manualLabel: languageProvider.translate('manual_tag'),
+            ),
+            const SizedBox(height: 16),
+            _PriceCard(
+              minPrice: widget.produceResult.priceRecommendedMin,
+              fairPrice: widget.produceResult.priceFairPerKg,
+              maxPrice: widget.produceResult.priceRecommendedMax,
+              isKn: isKn,
+            ),
+            const SizedBox(height: 12),
+            _ReasoningCard(reasoning: widget.produceResult.priceReasoning),
+            const SizedBox(height: 12),
+            _ConfidenceRow(confidence: widget.produceResult.priceConfidence, isKn: isKn),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const CameraScreen()),
+                  (route) => route.isFirst,
+                );
+              },
+              icon: const Icon(Icons.qr_code_scanner_rounded),
+              label: Text(languageProvider.translate('scan_another')),
+            ),
+            const SizedBox(height: 32),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProduceHeroCard extends StatelessWidget {
+  final File imageFile;
+  final String ripeness;
+  final String produceName;
+  final String produceNameKannada;
+
+  const _ProduceHeroCard({
+    required this.imageFile,
+    required this.ripeness,
+    required this.produceName,
+    required this.produceNameKannada,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final badge = _ripenessBadge(ripeness);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: SizedBox(
+        height: 200,
+        width: double.infinity,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.file(imageFile, fit: BoxFit.cover),
             Container(
-              width: double.infinity,
-              color: Colors.blueGrey.shade50,
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-              child: Text(
-                languageProvider.translate('ai_disclaimer'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12, color: Colors.blueGrey),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.10),
+                    Colors.black.withValues(alpha: 0.75),
+                  ],
+                ),
               ),
             ),
-
-            Padding(
-              padding: const EdgeInsets.all(20.0),
+            Positioned(
+              left: 20,
+              right: 20,
+              bottom: 18,
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Image Card
-                  Card(
-                    clipBehavior: Clip.antiAlias,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    child: Stack(
-                      children: [
-                        Image.file(
-                          widget.imageFile,
-                          height: 250,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                        ),
-                        Positioned(
-                          bottom: 12,
-                          left: 12,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.black54,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              isKn ? widget.produceResult.ripeness : widget.produceResult.ripeness.toUpperCase(),
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Produce Info
-                  Text(
-                    isKn ? widget.produceResult.nameKannada : widget.produceResult.nameEnglish,
-                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  // Location Tag
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.location_on, size: 16, color: AppColors.textGrey),
-                      const SizedBox(width: 4),
-                      Text(
-                        widget.locationResult.district,
-                        style: const TextStyle(color: AppColors.textGrey, fontSize: 14),
-                      ),
-                      if (widget.locationResult.isManualOverride) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.amber.shade100,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            languageProvider.translate('manual_tag'),
-                            style: const TextStyle(fontSize: 10, color: Colors.amber),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-
-                  const Divider(height: 48),
-
-                  // PRICE BREAKDOWN
-                  _buildPriceSection(languageProvider),
-
-                  const Divider(height: 48),
-
-                  // Confidence Meter
-                  _buildConfidenceSection(languageProvider),
-
-                  const SizedBox(height: 40),
-
-                  // Buttons
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(builder: (context) => const CameraScreen()),
-                        (route) => route.isFirst,
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 56),
-                      backgroundColor: AppColors.primaryGreen,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: badge.background,
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
-                      languageProvider.translate('scan_another'),
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      badge.label,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: badge.foreground,
+                      ),
                     ),
                   ),
-
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(builder: (context) => const HomeScreen()),
-                        (route) => false,
-                      );
-                    },
-                    child: Text(isKn ? 'ಮುಖಪುಟಕ್ಕೆ ಮರಳಿ' : 'Back to Home'),
+                  const SizedBox(height: 6),
+                  Text(
+                    produceName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 2),
+                  Text(
+                    produceNameKannada,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.70),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -211,88 +220,312 @@ class _ResultScreenState extends State<ResultScreen> {
     );
   }
 
-  Widget _buildPriceSection(LanguageProvider lang) {
+  _RipenessBadgeStyle _ripenessBadge(String value) {
+    final v = value.toLowerCase().trim();
+    if (v == 'ripe') {
+      return const _RipenessBadgeStyle(
+        label: 'ripe',
+        background: Color(0xFFFFF3E0),
+        foreground: AppColors.warning,
+      );
+    }
+    if (v == 'overripe') {
+      return const _RipenessBadgeStyle(
+        label: 'overripe',
+        background: Color(0xFFFFEBEE),
+        foreground: AppColors.error,
+      );
+    }
+    return const _RipenessBadgeStyle(
+      label: 'fresh',
+      background: AppColors.softGreen,
+      foreground: AppColors.accentGreen,
+    );
+  }
+}
+
+class _RipenessBadgeStyle {
+  final String label;
+  final Color background;
+  final Color foreground;
+
+  const _RipenessBadgeStyle({
+    required this.label,
+    required this.background,
+    required this.foreground,
+  });
+}
+
+class _AiEstimateChip extends StatelessWidget {
+  final bool isKn;
+
+  const _AiEstimateChip({required this.isKn});
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(13), // 0.05 * 255
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        color: const Color(0xFFF0F4FF),
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: Column(
+      child: Row(
         children: [
-          Text(
-            lang.translate('fair_price'),
-            style: const TextStyle(fontSize: 16, color: AppColors.textGrey),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '₹${widget.produceResult.priceFairPerKg.toStringAsFixed(0)}',
-            style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: AppColors.primaryGreen),
-          ),
-          const Text('per kg', style: TextStyle(color: AppColors.textGrey)),
-          const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildSmallPrice(lang.translate('min_price'), widget.produceResult.priceRecommendedMin, Colors.green),
-              _buildSmallPrice(lang.translate('max_price'), widget.produceResult.priceRecommendedMax, AppColors.errorRed),
-            ],
+          const Icon(Icons.auto_awesome_rounded, size: 16, color: AppColors.info),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              isKn ? 'AI ಬೆಲೆ ಅಂದಾಜು · ಸ್ಥಳ ಮತ್ತು ಋತುವಿನ ಆಧಾರಿತ' : 'AI price estimate · Based on location & season',
+              style: const TextStyle(fontSize: 13, color: AppColors.info),
+            ),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildSmallPrice(String label, double price, Color color) {
-    return Column(
+class _LocationRow extends StatelessWidget {
+  final String district;
+  final String state;
+  final bool isManual;
+  final String manualLabel;
+
+  const _LocationRow({
+    required this.district,
+    required this.state,
+    required this.isManual,
+    required this.manualLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
       children: [
-        Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textGrey)),
-        const SizedBox(height: 4),
+        const Icon(Icons.location_on_rounded, size: 16, color: AppColors.accentGreen),
+        const SizedBox(width: 4),
         Text(
-          '₹${price.toStringAsFixed(0)}',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
+          '$district, $state',
+          style: const TextStyle(
+            fontSize: 14,
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w500,
+          ),
         ),
+        if (isManual) ...[
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceAlt,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Text(
+              manualLabel,
+              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+            ),
+          ),
+        ],
       ],
     );
   }
+}
 
-  Widget _buildConfidenceSection(LanguageProvider lang) {
-    final conf = widget.produceResult.confidence;
-    final String msgKey = conf > 0.85 ? 'high_confidence_msg' : (conf > 0.7 ? 'medium_confidence_msg' : 'low_confidence_msg');
-    
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(lang.translate('confidence'), style: const TextStyle(fontWeight: FontWeight.bold)),
-            Text('${(conf * 100).toStringAsFixed(0)}%'),
-          ],
-        ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: conf,
-            minHeight: 8,
-            backgroundColor: Colors.grey.shade200,
-            color: conf > 0.7 ? AppColors.primaryGreen : Colors.amber,
+class _PriceCard extends StatelessWidget {
+  final double minPrice;
+  final double fairPrice;
+  final double maxPrice;
+  final bool isKn;
+
+  const _PriceCard({
+    required this.minPrice,
+    required this.fairPrice,
+    required this.maxPrice,
+    required this.isKn,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final lang = Provider.of<LanguageProvider>(context, listen: false);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        children: [
+          _PriceRow(
+            dotColor: AppColors.accentGreen,
+            label: lang.translate('min_price'),
+            caption: null,
+            price: minPrice,
           ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          lang.translate(msgKey),
-          style: TextStyle(
-            fontSize: 12, 
-            color: conf < 0.7 ? AppColors.errorRed : AppColors.textGrey,
-            fontStyle: FontStyle.italic,
+          const Divider(height: 1),
+          _PriceRow(
+            dotColor: AppColors.warning,
+            label: lang.translate('fair_price'),
+            caption: isKn ? 'ಶಿಫಾರಸು ಮಾಡಿದ ಮಾರಾಟ ಬೆಲೆ' : 'Recommended selling price',
+            price: fairPrice,
+          ),
+          const Divider(height: 1),
+          _PriceRow(
+            dotColor: AppColors.info,
+            label: lang.translate('max_price'),
+            caption: null,
+            price: maxPrice,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PriceRow extends StatelessWidget {
+  final Color dotColor;
+  final String label;
+  final String? caption;
+  final double price;
+
+  const _PriceRow({
+    required this.dotColor,
+    required this.label,
+    required this.caption,
+    required this.price,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+                if (caption != null) ...[
+                  const SizedBox(height: 2),
+                  Text(caption!, style: const TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                ],
+              ],
+            ),
+          ),
+          Text(
+            '₹${price.toStringAsFixed(0)}',
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+          ),
+          const SizedBox(width: 4),
+          const Text('/kg', style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReasoningCard extends StatelessWidget {
+  final String reasoning;
+
+  const _ReasoningCard({required this.reasoning});
+
+  @override
+  Widget build(BuildContext context) {
+    if (reasoning.trim().isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceAlt,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: const [
+              Icon(Icons.info_outline_rounded, size: 14, color: AppColors.textTertiary),
+              SizedBox(width: 6),
+              Text(
+                'Market insight',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textTertiary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            reasoning,
+            style: const TextStyle(
+              fontSize: 14,
+              color: AppColors.textSecondary,
+              height: 1.5,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ConfidenceRow extends StatelessWidget {
+  final String confidence;
+  final bool isKn;
+
+  const _ConfidenceRow({required this.confidence, required this.isKn});
+
+  @override
+  Widget build(BuildContext context) {
+    final level = confidence.toLowerCase().trim();
+
+    late final Color dotColor;
+    late final String text;
+    late final String chipText;
+
+    if (level == 'high') {
+      dotColor = AppColors.accentGreen;
+      text = isKn ? 'ಉನ್ನತ ವಿಶ್ವಾಸ' : 'High confidence';
+      chipText = isKn ? 'ಉತ್ತಮ' : 'High';
+    } else if (level == 'low') {
+      dotColor = AppColors.error;
+      text = isKn ? 'ಸ್ಥಳೀಯ ಮಂಡಿಯಲ್ಲಿ ಪರಿಶೀಲಿಸಿ' : 'Verify at local mandi';
+      chipText = isKn ? 'ಕಡಿಮೆ' : 'Low';
+    } else {
+      dotColor = AppColors.warning;
+      text = isKn ? 'ಮಧ್ಯಮ ವಿಶ್ವಾಸ' : 'Medium confidence';
+      chipText = isKn ? 'ಮಧ್ಯಮ' : 'Medium';
+    }
+
+    return Row(
+      children: [
+        Container(width: 8, height: 8, decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle)),
+        const SizedBox(width: 10),
+        Text(text, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, fontWeight: FontWeight.w500)),
+        const Spacer(),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceAlt,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Text(
+            chipText,
+            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
           ),
         ),
       ],

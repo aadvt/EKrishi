@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -17,22 +18,32 @@ class CameraScreen extends StatefulWidget {
   State<CameraScreen> createState() => _CameraScreenState();
 }
 
-class _CameraScreenState extends State<CameraScreen> {
+class _CameraScreenState extends State<CameraScreen> with SingleTickerProviderStateMixin {
   CameraController? _controller;
   List<CameraDescription>? _cameras;
   int _selectedCameraIndex = 0;
   bool _isPermissionGranted = false;
   bool _isLoading = true;
+  late final AnimationController _captureTapController;
+  late final Animation<double> _captureTapScale;
 
   @override
   void initState() {
     super.initState();
+    _captureTapController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 90),
+    );
+    _captureTapScale = Tween<double>(begin: 1.0, end: 0.9).animate(
+      CurvedAnimation(parent: _captureTapController, curve: Curves.easeOut),
+    );
     _checkPermissionAndInit();
   }
 
   @override
   void dispose() {
     _controller?.dispose();
+    _captureTapController.dispose();
     super.dispose();
   }
 
@@ -106,6 +117,14 @@ class _CameraScreenState extends State<CameraScreen> {
     }
   }
 
+  Future<void> _handleCaptureTap() async {
+    try {
+      await _captureTapController.forward();
+      await _captureTapController.reverse();
+    } catch (_) {}
+    await _captureImage();
+  }
+
   Future<void> _pickFromGallery() async {
     final picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
@@ -159,35 +178,52 @@ class _CameraScreenState extends State<CameraScreen> {
 
     if (!_isPermissionGranted) {
       return Scaffold(
-        backgroundColor: AppColors.backgroundWhite,
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.camera_rear_outlined, size: 64, color: AppColors.textGrey),
-                const SizedBox(height: 16),
-                Text(
-                  languageProvider.translate('camera_permission_required'),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 18, color: AppColors.textDark),
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: () => openAppSettings(),
-                  child: Text(languageProvider.translate('grant_permission')),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Go Back'),
-                ),
-              ],
+        backgroundColor: AppColors.surface,
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.camera_alt_outlined, size: 80, color: AppColors.border),
+                  const SizedBox(height: 20),
+                  Text(
+                    languageProvider.isKannada ? 'ಕ್ಯಾಮೆರಾ ಅನುಮತಿ ಅಗತ್ಯ' : 'Camera Access Needed',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    languageProvider.isKannada
+                        ? 'ಬೆಳೆ ಸ್ಕ್ಯಾನ್ ಮಾಡಲು ಕ್ಯಾಮೆರಾ ಅನುಮತಿಯನ್ನು ನೀಡಿ'
+                        : 'Allow camera access to scan produce prices',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 15, color: AppColors.textSecondary, height: 1.5),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: 220,
+                    child: ElevatedButton(
+                      onPressed: () => openAppSettings(),
+                      child: Text(languageProvider.isKannada ? 'ಕ್ಯಾಮೆರಾ ಅನುಮತಿ ನೀಡಿ' : 'Allow Camera'),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       );
     }
+
+    final hasFlip = _cameras != null && _cameras!.length > 1;
+    final topInset = MediaQuery.of(context).padding.top;
+    final bottomInset = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -200,95 +236,169 @@ class _CameraScreenState extends State<CameraScreen> {
                 : Container(color: Colors.black),
           ),
 
-          // TOP OVERLAY (Back button and instructions)
+          // TOP GRADIENT (for back button visibility)
           Positioned(
-            top: MediaQuery.of(context).padding.top + 16,
+            top: 0,
             left: 0,
             right: 0,
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white, size: 30),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  languageProvider.translate('point_camera'),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500,
-                    shadows: [
-                      Shadow(blurRadius: 10, color: Colors.black, offset: Offset(2, 2)),
+            child: IgnorePointer(
+              child: Container(
+                height: 120,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.40),
+                      Colors.transparent,
                     ],
                   ),
                 ),
-              ],
+              ),
             ),
           ),
 
-          // BOTTOM OVERLAY
+          // BOTTOM GRADIENT (for controls visibility)
           Positioned(
             bottom: 0,
             left: 0,
             right: 0,
-            child: Container(
-              padding: const EdgeInsets.only(bottom: 40, top: 20),
-              decoration: BoxDecoration(
-                color: Colors.black.withAlpha(128), // 0.5 * 255
+            child: IgnorePointer(
+              child: Container(
+                height: 200,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.60),
+                    ],
+                  ),
+                ),
               ),
+            ),
+          ),
+
+          // TOP OVERLAY (back + instruction)
+          Positioned(
+            top: topInset + 16,
+            left: 16,
+            right: 16,
+            child: Row(
+              children: [
+                _FrostedCircleButton(
+                  size: 44,
+                  onTap: () => Navigator.pop(context),
+                  child: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  languageProvider.isKannada ? 'ಬೆಳೆಯ ಕಡೆ ತೋರಿಸಿ' : 'Point at produce',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const Spacer(),
+                const SizedBox(width: 44),
+              ],
+            ),
+          ),
+
+          // BOTTOM CONTROLS
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Padding(
+              padding: EdgeInsets.only(bottom: bottomInset + 48),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  // Pick from Gallery
-                  IconButton(
-                    icon: const Icon(Icons.image_outlined, color: Colors.white, size: 32),
-                    onPressed: _pickFromGallery,
+                  _FrostedCircleButton(
+                    size: 52,
+                    onTap: _pickFromGallery,
+                    child: const Icon(Icons.photo_library_rounded, color: Colors.white, size: 22),
                   ),
-
-                  // Capture Button
                   GestureDetector(
-                    onTap: _captureImage,
-                    child: Container(
-                      height: 72,
-                      width: 72,
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: Container(
-                          height: 60,
-                          width: 60,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.black, width: 2),
+                    onTap: _handleCaptureTap,
+                    child: ScaleTransition(
+                      scale: _captureTapScale,
+                      child: Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(alpha: 0.30),
+                        ),
+                        child: Center(
+                          child: Container(
+                            width: 64,
+                            height: 64,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-
-                  // Switch Camera
-                  IconButton(
-                    icon: Icon(
-                      Icons.flip_camera_android_outlined,
-                      color: (_cameras != null && _cameras!.length > 1) 
-                          ? Colors.white 
-                          : Colors.transparent,
-                      size: 32,
+                  Opacity(
+                    opacity: hasFlip ? 1 : 0,
+                    child: IgnorePointer(
+                      ignoring: !hasFlip,
+                      child: _FrostedCircleButton(
+                        size: 52,
+                        onTap: _toggleCamera,
+                        child: const Icon(Icons.flip_camera_ios_rounded, color: Colors.white, size: 22),
+                      ),
                     ),
-                    onPressed: (_cameras != null && _cameras!.length > 1) ? _toggleCamera : null,
                   ),
                 ],
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _FrostedCircleButton extends StatelessWidget {
+  final double size;
+  final Widget child;
+  final VoidCallback? onTap;
+
+  const _FrostedCircleButton({
+    required this.size,
+    required this.child,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipOval(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Material(
+          color: Colors.white.withValues(alpha: 0.15),
+          child: InkWell(
+            onTap: onTap,
+            splashColor: Colors.white.withValues(alpha: 0.10),
+            child: SizedBox(
+              width: size,
+              height: size,
+              child: Center(child: child),
+            ),
+          ),
+        ),
       ),
     );
   }

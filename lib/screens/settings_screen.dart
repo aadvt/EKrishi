@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import '../utils/language_provider.dart';
-import '../services/location_service.dart';
-import '../models/location_result.dart';
+import 'package:provider/provider.dart';
+
 import '../constants/app_colors.dart';
+import '../models/location_result.dart';
+import '../services/location_service.dart';
+import '../utils/language_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -20,15 +21,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
   LocationResult? _currentLocation;
 
   final List<String> _indianStates = [
-    'Karnataka', 'Tamil Nadu', 'Andhra Pradesh', 'Maharashtra', 'Kerala',
-    'Telangana', 'Uttar Pradesh', 'Gujarat', 'Rajasthan', 'Madhya Pradesh',
-    'Bihar', 'West Bengal', 'Punjab', 'Haryana', 'Odisha', 'Assam',
+    'Karnataka',
+    'Tamil Nadu',
+    'Andhra Pradesh',
+    'Maharashtra',
+    'Kerala',
+    'Telangana',
+    'Uttar Pradesh',
+    'Gujarat',
+    'Rajasthan',
+    'Madhya Pradesh',
+    'Bihar',
+    'West Bengal',
+    'Punjab',
+    'Haryana',
+    'Odisha',
+    'Assam',
   ];
 
   @override
   void initState() {
     super.initState();
     _loadCurrentLocation();
+  }
+
+  @override
+  void dispose() {
+    _districtController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadCurrentLocation() async {
@@ -42,175 +62,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final lang = Provider.of<LanguageProvider>(context);
-
-    return Scaffold(
-      backgroundColor: AppColors.backgroundWhite,
-      appBar: AppBar(
-        title: Text(lang.translate('settings')),
-        backgroundColor: Colors.white,
-        foregroundColor: AppColors.textDark,
-        elevation: 0,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // LANGUAGE SECTION
-            _buildSectionHeader(lang.translate('language')),
-            const SizedBox(height: 16),
-            _buildLanguageToggle(lang),
-            const Divider(height: 48),
-
-            // LOCATION SECTION
-            _buildSectionHeader(lang.translate('your_location')),
-            const SizedBox(height: 16),
-            if (_currentLocation != null)
-              _buildCurrentLocationDisplay(lang),
-            const SizedBox(height: 20),
-            _buildLocationForm(lang),
-            const SizedBox(height: 16),
-            _buildResetLocationButton(lang),
-            const Divider(height: 48),
-
-            // CACHE SECTION
-            _buildSectionHeader(lang.translate('cached_data')),
-            const SizedBox(height: 12),
-            Text(
-              lang.translate('cache_info'),
-              style: const TextStyle(fontSize: 14, color: AppColors.textGrey),
-            ),
-            const SizedBox(height: 16),
-            _buildClearCacheButton(lang),
-
-            const SizedBox(height: 60),
-
-            // FOOTER
-            _buildFooter(),
-            const SizedBox(height: 40),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSectionHeader(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.bold,
-        color: AppColors.primaryGreen,
-      ),
-    );
-  }
-
-  Widget _buildLanguageToggle(LanguageProvider lang) {
-    final isEn = lang.currentLanguage == 'en';
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade200,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildLanguageChip('English', isEn, () {
-            if (!isEn) lang.toggleLanguage();
-          }),
-          _buildLanguageChip('ಕನ್ನಡ', !isEn, () {
-            if (isEn) lang.toggleLanguage();
-          }),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLanguageChip(String label, bool isActive, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-        decoration: BoxDecoration(
-          color: isActive ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: isActive ? [const BoxShadow(color: Colors.black12, blurRadius: 4)] : null,
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: isActive ? AppColors.primaryGreen : AppColors.textGrey,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCurrentLocationDisplay(LanguageProvider lang) {
-    return Row(
-      children: [
-        const Icon(Icons.location_on, color: AppColors.primaryGreen, size: 20),
-        const SizedBox(width: 8),
-        Text(
-          '${_currentLocation!.city}, ${_currentLocation!.state}',
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-        ),
-        if (_currentLocation!.isManualOverride)
-          Padding(
-            padding: const EdgeInsets.only(left: 8.0),
-            child: Chip(
-              label: Text(lang.translate('manual_tag'), style: const TextStyle(fontSize: 10)),
-              backgroundColor: Colors.grey.shade200,
-              padding: EdgeInsets.zero,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildLocationForm(LanguageProvider lang) {
-    return Column(
-      children: [
-        TextField(
-          controller: _districtController,
-          decoration: InputDecoration(
-            labelText: lang.translate('district'),
-            border: const OutlineInputBorder(),
-          ),
-        ),
-        const SizedBox(height: 16),
-        DropdownMenu<String>(
-          initialSelection: _selectedState,
-          label: Text(lang.translate('state')),
-          width: double.infinity,
-          dropdownMenuEntries: _indianStates.map((state) {
-            return DropdownMenuEntry<String>(value: state, label: state);
-          }).toList(),
-          onSelected: (val) {
-            if (val != null) setState(() => _selectedState = val);
-          },
-        ),
-        const SizedBox(height: 16),
-        ElevatedButton(
-          onPressed: _saveManualLocation,
-          style: ElevatedButton.styleFrom(
-            minimumSize: const Size(double.infinity, 50),
-            backgroundColor: AppColors.primaryGreen,
-            foregroundColor: Colors.white,
-          ),
-          child: Text(lang.translate('save_location')),
-        ),
-      ],
-    );
-  }
-
   Future<void> _saveManualLocation() async {
     final lang = Provider.of<LanguageProvider>(context, listen: false);
     await _locationService.setManualLocation(_districtController.text, _selectedState);
@@ -222,51 +73,381 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Widget _buildResetLocationButton(LanguageProvider lang) {
-    return TextButton.icon(
-      onPressed: () async {
-        await _locationService.clearLocationCache();
-        await _loadCurrentLocation();
-      },
-      icon: const Icon(Icons.gps_fixed, size: 18),
-      label: Text(lang.translate('reset_to_gps')),
-      style: TextButton.styleFrom(foregroundColor: AppColors.primaryGreen),
-    );
+  Future<void> _resetToGps(LanguageProvider lang) async {
+    await _locationService.clearLocationCache();
+    await _loadCurrentLocation();
   }
 
-  Widget _buildClearCacheButton(LanguageProvider lang) {
-    return TextButton.icon(
-      onPressed: () async {
-        await Hive.box('prices').clear();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(lang.translate('cache_cleared'))),
-          );
-        }
-      },
-      icon: const Icon(Icons.delete_sweep_outlined, color: AppColors.errorRed),
-      label: Text(
-        lang.translate('clear_price_cache'),
-        style: const TextStyle(color: AppColors.errorRed),
+  Future<void> _clearPriceCache(LanguageProvider lang) async {
+    await Hive.box('prices').clear();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(lang.translate('cache_cleared'))),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final lang = Provider.of<LanguageProvider>(context);
+    final isKn = lang.isKannada;
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        title: Text(lang.translate('settings')),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _SectionLabel(text: 'LANGUAGE'),
+            _CardContainer(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const Icon(Icons.language_rounded, size: 20, color: AppColors.accentGreen),
+                    const SizedBox(width: 10),
+                    Text(
+                      isKn ? 'ಭಾಷೆ' : 'Language',
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
+                    ),
+                    const Spacer(),
+                    _LanguageSegmentedControl(isEnglish: lang.currentLanguage == 'en', onToggle: lang.toggleLanguage),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            _SectionLabel(text: 'LOCATION'),
+            _CardContainer(
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.location_on_rounded, size: 20, color: AppColors.accentGreen),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                isKn ? 'ಪ್ರಸ್ತುತ ಸ್ಥಳ' : 'Current Location',
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                _currentLocation == null
+                                    ? '—'
+                                    : '${_currentLocation!.district}, ${_currentLocation!.state}',
+                                style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (_currentLocation?.isManualOverride == true)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceAlt,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: Text(
+                              isKn ? 'ಕೈಯಾರೆ' : 'Manual',
+                              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _LabeledField(
+                            label: lang.translate('district'),
+                            child: TextField(
+                              controller: _districtController,
+                              decoration: const InputDecoration(hintText: ''),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _LabeledField(
+                            label: lang.translate('state'),
+                            child: DropdownButtonFormField<String>(
+                              initialValue: _selectedState,
+                              items: _indianStates
+                                  .map((state) => DropdownMenuItem<String>(value: state, child: Text(state)))
+                                  .toList(),
+                              onChanged: (val) {
+                                if (val != null) setState(() => _selectedState = val);
+                              },
+                              decoration: const InputDecoration(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        SizedBox(
+                          height: 48,
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: _saveManualLocation,
+                            style: ElevatedButton.styleFrom(
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: Text(lang.translate('save_location')),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextButton(
+                          onPressed: () => _resetToGps(lang),
+                          style: TextButton.styleFrom(foregroundColor: AppColors.accentGreen),
+                          child: Text(lang.translate('reset_to_gps')),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            _SectionLabel(text: 'DATA'),
+            _CardContainer(
+              child: InkWell(
+                onTap: () => _clearPriceCache(lang),
+                borderRadius: BorderRadius.circular(16),
+                splashColor: Colors.black.withValues(alpha: 0.04),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.cached_rounded, size: 20, color: AppColors.accentGreen),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              isKn ? 'ಬೆಲೆ ಕ್ಯಾಶ್ ತೆರವುಗೊಳಿಸಿ' : 'Clear Price Cache',
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              lang.translate('cache_info'),
+                              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            _SectionLabel(text: 'ABOUT'),
+            _CardContainer(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const Icon(Icons.eco_rounded, size: 20, color: AppColors.accentGreen),
+                    const SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text(
+                          'E-Krishi',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'v1.0.0 · Module 1',
+                          style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 32),
+          ],
+        ),
       ),
     );
   }
+}
 
-  Widget _buildFooter() {
-    return const Center(
-      child: Column(
-        children: [
-          Text(
-            'v1.0.0 — E-Krishi Module 1',
-            style: TextStyle(color: AppColors.textGrey, fontSize: 13, fontWeight: FontWeight.bold),
+class _SectionLabel extends StatelessWidget {
+  final String text;
+
+  const _SectionLabel({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 0, bottom: 8),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 11,
+          color: AppColors.textTertiary,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.8,
+        ),
+      ),
+    );
+  }
+}
+
+class _CardContainer extends StatelessWidget {
+  final Widget child;
+
+  const _CardContainer({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: child,
+    );
+  }
+}
+
+class _LanguageSegmentedControl extends StatelessWidget {
+  final bool isEnglish;
+  final VoidCallback onToggle;
+
+  const _LanguageSegmentedControl({required this.isEnglish, required this.onToggle});
+
+  @override
+  Widget build(BuildContext context) {
+    Widget option({
+      required String text,
+      required bool isActive,
+      required VoidCallback onTap,
+    }) {
+      return Expanded(
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          splashColor: Colors.black.withValues(alpha: 0.04),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: isActive ? AppColors.surface : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: isActive
+                  ? [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.06),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Center(
+              child: Text(
+                text,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: isActive ? AppColors.textPrimary : AppColors.textSecondary,
+                ),
+              ),
+            ),
           ),
-          SizedBox(height: 8),
-          Text(
-            'Prices sourced from Agmarknet, Government of India',
-            style: TextStyle(color: AppColors.textGrey, fontSize: 11),
+        ),
+      );
+    }
+
+    return Container(
+      width: 140,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceAlt,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          option(
+            text: 'EN',
+            isActive: isEnglish,
+            onTap: () {
+              if (!isEnglish) onToggle();
+            },
+          ),
+          option(
+            text: 'ಕನ್ನಡ',
+            isActive: !isEnglish,
+            onTap: () {
+              if (isEnglish) onToggle();
+            },
           ),
         ],
       ),
     );
   }
 }
+
+class _LabeledField extends StatelessWidget {
+  final String label;
+  final Widget child;
+
+  const _LabeledField({required this.label, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 6),
+        child,
+      ],
+    );
+  }
+}
+
