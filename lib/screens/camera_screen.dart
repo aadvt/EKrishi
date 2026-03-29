@@ -239,7 +239,7 @@ class _CameraScreenState extends State<CameraScreen> {
             child: Container(
               padding: const EdgeInsets.only(bottom: 40, top: 20),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.5),
+                color: Colors.black.withAlpha(128), // 0.5 * 255
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -22,6 +23,7 @@ class LocationService {
     // 2. Request Permissions
     final status = await Permission.location.request();
     if (status.isDenied) {
+      debugPrint('No location permission');
       return _getManualOrFallback();
     }
 
@@ -74,7 +76,7 @@ class LocationService {
         return result;
       }
     } catch (e) {
-      print('Error fetching location: $e');
+      debugPrint('Reverse Geocoding Error: $e');
     }
 
     return _getManualOrFallback();

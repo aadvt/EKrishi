@@ -21,6 +21,7 @@ void main() async {
   await Hive.openBox('settings');
   await Hive.openBox('location');
   await Hive.openBox('history');
+  await Hive.openBox('prices');
   
   runApp(
     MultiProvider(

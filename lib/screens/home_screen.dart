@@ -7,6 +7,7 @@ import '../constants/app_colors.dart';
 import 'settings_screen.dart';
 import 'camera_screen.dart';
 import 'history_screen.dart';
+import '../widgets/offline_banner.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -93,21 +94,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: Column(
         children: [
-          if (isOffline)
-            Container(
-              width: double.infinity,
-              color: AppColors.amber,
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-              child: Text(
-                languageProvider.translate('offline_banner'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppColors.textDark,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 14,
-                ),
-              ),
-            ),
+          OfflineBanner(isOffline: isOffline),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),

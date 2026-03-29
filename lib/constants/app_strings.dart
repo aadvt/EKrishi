@@ -164,5 +164,49 @@ class AppStrings {
       'en': 'Scan Again',
       'kn': 'ಮತ್ತೆ ಸ್ಕ್ಯಾನ್ ಮಾಡಿ',
     },
+    'try_again': {
+      'en': 'Try Again',
+      'kn': 'ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ',
+    },
+    'your_location': {
+      'en': 'Your Location',
+      'kn': 'ನಿಮ್ಮ ಸ್ಥಳ',
+    },
+    'district': {
+      'en': 'District',
+      'kn': 'ಜಿಲ್ಲೆ',
+    },
+    'state': {
+      'en': 'State',
+      'kn': 'ರಾಜ್ಯ',
+    },
+    'save_location': {
+      'en': 'Save Location',
+      'kn': 'ಸ್ಥಳ ಉಳಿಸಿ',
+    },
+    'reset_to_gps': {
+      'en': 'Reset to GPS Location',
+      'kn': 'GPS ಸ್ಥಳಕ್ಕೆ ಮರಳಿ',
+    },
+    'location_saved': {
+      'en': 'Location saved successfully',
+      'kn': 'ಸ್ಥಳವನ್ನು ಯಶಸ್ವಿಯಾಗಿ ಉಳಿಸಲಾಗಿದೆ',
+    },
+    'cached_data': {
+      'en': 'Cached Data',
+      'kn': 'ಸಂಗ್ರಹಿಸಿದ ಡೇಟಾ',
+    },
+    'cache_info': {
+      'en': 'Price data is cached for 24 hours for offline use',
+      'kn': 'ಆಫ್‌ಲೈನ್ ಬಳಕೆಗಾಗಿ ಬೆಲೆ ಡೇಟಾವನ್ನು 24 ಗಂಟೆಗಳ ಕಾಲ ಸಂಗ್ರಹಿಸಲಾಗುತ್ತದೆ',
+    },
+    'clear_price_cache': {
+      'en': 'Clear Price Cache',
+      'kn': 'ಬೆಲೆ ಕ್ಯಾಶ್ ತೆರವುಗೊಳಿಸಿ',
+    },
+    'cache_cleared': {
+      'en': 'Price cache cleared',
+      'kn': 'ಬೆಲೆ ಕ್ಯಾಶ್ ತೆರವುಗೊಳಿಸಲಾಗಿದೆ',
+    },
   };
 }

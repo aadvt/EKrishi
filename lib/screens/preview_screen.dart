@@ -8,6 +8,7 @@ import '../services/location_service.dart';
 import '../models/produce_result.dart';
 import '../models/location_result.dart';
 import '../utils/exceptions.dart';
+import '../widgets/loading_widget.dart';
 import 'result_screen.dart';
 
 class PreviewScreen extends StatefulWidget {
@@ -172,25 +173,11 @@ class _PreviewScreenState extends State<PreviewScreen> {
           // LOADING OVERLAY
           if (_isAnalyzing)
             Container(
-              color: Colors.black.withOpacity(0.6),
+              color: Colors.black.withAlpha(153), // 0.6 * 255
               width: double.infinity,
               height: size.height * 0.55,
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const CircularProgressIndicator(color: Colors.white),
-                    const SizedBox(height: 16),
-                    Text(
-                      languageProvider.translate('identifying'),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
+              child: LoadingWidget(
+                message: languageProvider.translate('identifying'),
               ),
             ),
             
