@@ -4,6 +4,10 @@ class AppStrings {
       'en': 'E-Krishi',
       'kn': 'ಇ-ಕೃಷಿ',
     },
+    'tagline': {
+      'en': 'Fair prices for every farmer',
+      'kn': 'ಪ್ರತಿ ರೈತರಿಗೆ ನ್ಯಾಯಯುತ ಬೆಲೆ',
+    },
     'scan_produce': {
       'en': 'Scan Produce',
       'kn': 'ಬೆಳೆ ಸ್ಕ್ಯಾನ್ ಮಾಡಿ',
