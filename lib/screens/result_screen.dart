@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/produce_service.dart';
+import '../models/produce_result.dart';
 import '../services/location_service.dart';
 
 class ResultScreen extends StatelessWidget {
@@ -12,12 +12,17 @@ class ResultScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Analysis Results')),
-      body: Center(
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('Identify: ${produceResult.name} (${produceResult.confidence}%)'),
-            Text('Location: ${locationResult.address}'),
+            Text('Produce: ${produceResult.nameEnglish} / ${produceResult.nameKannada}'),
+            Text('Confidence: ${(produceResult.confidence * 100).toStringAsFixed(1)}%'),
+            Text('District: ${locationResult.district}'),
+            const Divider(),
+            Text('Fair Price: ₹${produceResult.priceFairPerKg}/kg'),
+            Text('Range: ₹${produceResult.priceMinPerKg} - ₹${produceResult.priceMaxPerKg}'),
+            Text('Reasoning: ${produceResult.priceReasoning}'),
           ],
         ),
       ),

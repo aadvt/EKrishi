@@ -5,6 +5,8 @@ import '../utils/language_provider.dart';
 import '../constants/app_colors.dart';
 import '../services/produce_service.dart';
 import '../services/location_service.dart';
+import '../models/produce_result.dart';
+import '../utils/exceptions.dart';
 import 'result_screen.dart';
 
 class PreviewScreen extends StatefulWidget {
@@ -25,13 +27,15 @@ class _PreviewScreenState extends State<PreviewScreen> {
     setState(() => _isAnalyzing = true);
 
     try {
-      final results = await Future.wait([
-        _produceService.identifyProduce(widget.imageFile),
-        _locationService.getCurrentLocation(),
-      ]);
+      // 1. Get current location for regional pricing context
+      final LocationResult location = await _locationService.getCurrentLocation();
 
-      final produceResult = results[0] as ProduceResult;
-      final locationResult = results[1] as LocationResult;
+      // 2. Identify and price produce via Gemini
+      final ProduceResult produceResult = await _produceService.identifyProduce(
+        widget.imageFile,
+        location.district,
+        location.state,
+      );
 
       if (mounted) {
         Navigator.push(
@@ -39,7 +43,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
           MaterialPageRoute(
             builder: (context) => ResultScreen(
               produceResult: produceResult,
-              locationResult: locationResult,
+              locationResult: location,
             ),
           ),
         );
@@ -95,8 +99,8 @@ class _PreviewScreenState extends State<PreviewScreen> {
                 width: double.infinity,
                 child: ClipRRect(
                   borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(24),
-                    bottomRight: Radius.circular(24),
+                    bottomLeft: Radius.circular(16),
+                    bottomRight: Radius.circular(16),
                   ),
                   child: Image.file(
                     widget.imageFile,
@@ -117,7 +121,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                       Text(
                         languageProvider.translate('analyse_title'),
                         style: const TextStyle(
-                          fontSize: 22,
+                          fontSize: 20,
                           fontWeight: FontWeight.bold,
                           color: AppColors.textDark,
                         ),
