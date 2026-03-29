@@ -104,5 +104,37 @@ class AppStrings {
       'en': 'Make sure the produce is clearly visible in the image',
       'kn': 'ಚಿತ್ರದಲ್ಲಿ ಬೆಳೆ ಸ್ಪಷ್ಟವಾಗಿ ಕಾಣಿಸುತ್ತಿದೆ ಎಂದು ಖಚಿತಪಡಿಸಿ',
     },
+    'price_estimate': {
+      'en': 'Price Estimate',
+      'kn': 'ಬೆಲೆ ಅಂದಾಜು',
+    },
+    'ai_disclaimer': {
+      'en': 'ℹ️ AI price estimate based on location and season',
+      'kn': 'ℹ️ ಸ್ಥಳ ಮತ್ತು ಋತುವಿನ ಆಧಾರದ ಮೇಲೆ AI ಬೆಲೆ ಅಂದಾಜು',
+    },
+    'low_confidence_warning': {
+      'en': 'Low confidence — please verify',
+      'kn': 'ಕಡಿಮೆ ವಿಶ್ವಾಸ — ದಯವಿಟ್ಟು ಪರಿಶೀಲಿಸಿ',
+    },
+    'high_confidence_msg': {
+      'en': 'High confidence estimate',
+      'kn': 'ಹೆಚ್ಚಿನ ವಿಶ್ವಾಸಾರ್ಹತೆಯ ಅಂದಾಜು',
+    },
+    'medium_confidence_msg': {
+      'en': 'Medium confidence estimate',
+      'kn': 'ಮಧ್ಯಮ ವಿಶ್ವಾಸಾರ್ಹತೆಯ ಅಂದಾಜು',
+    },
+    'low_confidence_msg': {
+      'en': 'Low confidence — verify at local mandi',
+      'kn': 'ಕಡಿಮೆ ವಿಶ್ವಾಸ — ಸ್ಥಳೀಯ ಮಂಡಿಯಲ್ಲಿ ಪರಿಶೀಲಿಸಿ',
+    },
+    'manual_tag': {
+      'en': '(Manual)',
+      'kn': '(ಕೈಯಾರೆ)',
+    },
+    'prices_sourced_info': {
+      'en': 'Estimated fair market pricing',
+      'kn': 'ಅಂದಾಜು ನ್ಯಾಯಯುತ ಮಾರುಕಟ್ಟೆ ಬೆಲೆ',
+    },
   };
 }

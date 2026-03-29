@@ -6,6 +6,7 @@ import '../constants/app_colors.dart';
 import '../services/produce_service.dart';
 import '../services/location_service.dart';
 import '../models/produce_result.dart';
+import '../models/location_result.dart';
 import '../utils/exceptions.dart';
 import 'result_screen.dart';
 
@@ -42,6 +43,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
           context,
           MaterialPageRoute(
             builder: (context) => ResultScreen(
+              imageFile: widget.imageFile,
               produceResult: produceResult,
               locationResult: location,
             ),

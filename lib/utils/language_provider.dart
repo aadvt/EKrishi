@@ -7,6 +7,7 @@ class LanguageProvider extends ChangeNotifier {
   final Box _settingsBox = Hive.box('settings');
 
   String get currentLanguage => _currentLanguage;
+  bool get isKannada => _currentLanguage == 'kn';
 
   LanguageProvider() {
     _loadLanguage();
