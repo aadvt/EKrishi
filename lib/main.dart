@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'screens/home_screen.dart';
 import 'utils/language_provider.dart';
 import 'constants/app_theme.dart';
+import 'models/scan_history.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,6 +15,7 @@ void main() async {
   
   // Initialize Hive
   await Hive.initFlutter();
+  Hive.registerAdapter(ScanHistoryAdapter());
   
   // Open Hive boxes
   await Hive.openBox('settings');

@@ -36,9 +36,12 @@ class _ResultScreenState extends State<ResultScreen> {
     try {
       final historyBox = Hive.box('history');
       final entry = ScanHistory(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
         produceNameEnglish: widget.produceResult.nameEnglish,
         produceNameKannada: widget.produceResult.nameKannada,
         fairPrice: widget.produceResult.priceFairPerKg,
+        minPrice: widget.produceResult.priceRecommendedMin,
+        maxPrice: widget.produceResult.priceRecommendedMax,
         district: widget.locationResult.district,
         scannedAt: DateTime.now(),
         imagePath: widget.imageFile.path,

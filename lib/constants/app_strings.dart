@@ -136,5 +136,33 @@ class AppStrings {
       'en': 'Estimated fair market pricing',
       'kn': 'ಅಂದಾಜು ನ್ಯಾಯಯುತ ಮಾರುಕಟ್ಟೆ ಬೆಲೆ',
     },
+    'price_history': {
+      'en': 'Price History',
+      'kn': 'ಬೆಲೆ ಇತಿಹಾಸ',
+    },
+    'history_empty_subtitle': {
+      'en': 'Your scanned produce will appear here',
+      'kn': 'ನಿಮ್ಮ ಸ್ಕ್ಯಾನ್ ಮಾಡಿದ ಬೆಳೆಗಳು ಇಲ್ಲಿ ಕಾಣಿಸುತ್ತವೆ',
+    },
+    'clear': {
+      'en': 'Clear',
+      'kn': 'ತೆರವುಗೊಳಿಸಿ',
+    },
+    'confirm_clear_title': {
+      'en': 'Confirm Clear',
+      'kn': 'ತೆರವು ಖಚಿತಪಡಿಸಿ',
+    },
+    'confirm_clear_msg': {
+      'en': 'Are you sure you want to clear all history?',
+      'kn': 'ಎಲ್ಲಾ ಇತಿಹಾಸವನ್ನು ತೆರವುಗೊಳಿಸಲು ನೀವು ಖಚಿತವಾಗಿದ್ದೀರಾ?',
+    },
+    'cancel': {
+      'en': 'Cancel',
+      'kn': 'ರದ್ದುಗೊಳಿಸಿ',
+    },
+    'scan_again': {
+      'en': 'Scan Again',
+      'kn': 'ಮತ್ತೆ ಸ್ಕ್ಯಾನ್ ಮಾಡಿ',
+    },
   };
 }
