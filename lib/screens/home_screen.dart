@@ -111,49 +111,30 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 const SizedBox(height: 20),
 
-                // TOP SECTION
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppColors.softGreen,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    isKn ? 'ರೈತ ಬೆಲೆ ಮಾರ್ಗದರ್ಶಿ' : 'Farmer Price Guide',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.accentGreen,
-                    ),
-                  ),
+                const Icon(
+                  Icons.eco_rounded,
+                  size: 32,
+                  color: Color(0xFF52B788),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 Text(
-                  isKn ? 'ನಿಮ್ಮ' : 'Know your',
+                  isKn ? 'ನಿಮ್ಮ ನ್ಯಾಯಬೆಲೆ ತಿಳಿಯಿರಿ.' : 'Know your fair price.',
                   style: const TextStyle(
-                    fontSize: 34,
-                    fontWeight: FontWeight.w300,
-                    color: AppColors.textPrimary,
-                    height: 1.05,
-                  ),
-                ),
-                Text(
-                  isKn ? 'ನ್ಯಾಯಬೆಲೆ.' : 'fair price.',
-                  style: const TextStyle(
-                    fontSize: 34,
+                    fontSize: 30,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.primaryGreen,
+                    color: Color(0xFF1A1A1A),
                     height: 1.05,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Text(
                   isKn
                       ? 'ಯಾವುದೇ ಬೆಳೆ ಮೇಲೆ ಕ್ಯಾಮೆರಾ ತೋರಿಸಿ — ತಕ್ಷಣ ನ್ಯಾಯಯುತ ಮಾರುಕಟ್ಟೆ ಬೆಲೆಯ ಅಂದಾಜು ಪಡೆಯಿರಿ.'
                       : 'Point your camera at any produce to get an instant fair market price estimate.',
                   style: const TextStyle(
                     fontSize: 15,
-                    color: AppColors.textSecondary,
+                    color: Color(0xFF6B6B6B),
+                    fontWeight: FontWeight.w400,
                     height: 1.5,
                   ),
                 ),
@@ -222,37 +203,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                   ),
-                ),
-
-                const SizedBox(height: 32),
-
-                // STATS ROW
-                const Row(
-                  children: [
-                    Expanded(
-                      child: _MiniStatCard(
-                        icon: Icons.verified_rounded,
-                        value: '247+',
-                        label: 'Crops',
-                      ),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: _MiniStatCard(
-                        icon: Icons.location_on_rounded,
-                        value: 'Live',
-                        label: 'Pricing',
-                      ),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: _MiniStatCard(
-                        icon: Icons.cloud_off_rounded,
-                        value: 'Offline',
-                        label: 'Ready',
-                      ),
-                    ),
-                  ],
                 ),
 
                 const SizedBox(height: 24),
