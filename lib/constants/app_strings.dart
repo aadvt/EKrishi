@@ -96,5 +96,13 @@ class AppStrings {
       'en': 'Grant Permission',
       'kn': 'ಅನುಮತಿ ನೀಡಿ',
     },
+    'analyse_title': {
+      'en': 'Analyse this produce?',
+      'kn': 'ಈ ಬೆಳೆಯನ್ನು ವಿಶ್ಲೇಷಿಸಲೇ?',
+    },
+    'analyse_subtitle': {
+      'en': 'Make sure the produce is clearly visible in the image',
+      'kn': 'ಚಿತ್ರದಲ್ಲಿ ಬೆಳೆ ಸ್ಪಷ್ಟವಾಗಿ ಕಾಣಿಸುತ್ತಿದೆ ಎಂದು ಖಚಿತಪಡಿಸಿ',
+    },
   };
 }
