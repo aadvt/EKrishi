@@ -72,7 +72,10 @@ class _ResultScreenState extends State<ResultScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.share_rounded, color: AppColors.textSecondary),
+            icon: const Icon(
+              Icons.share_rounded,
+              color: AppColors.textSecondary,
+            ),
             onPressed: () {},
           ),
         ],
@@ -112,7 +115,10 @@ class _ResultScreenState extends State<ResultScreen> {
               gradeReasoning: widget.produceResult.gradeReasoning,
             ),
             const SizedBox(height: 12),
-            _ConfidenceRow(confidence: widget.produceResult.priceConfidence, isKn: isKn),
+            _ConfidenceRow(
+              confidence: widget.produceResult.priceConfidence,
+              isKn: isKn,
+            ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: () {
@@ -184,7 +190,10 @@ class _ProduceHeroCard extends StatelessWidget {
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: gradeBadge.background,
                           borderRadius: BorderRadius.circular(20),
@@ -200,7 +209,10 @@ class _ProduceHeroCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: ripenessBadge.background,
                           borderRadius: BorderRadius.circular(20),
@@ -322,11 +334,17 @@ class _AiEstimateChip extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.auto_awesome_rounded, size: 16, color: AppColors.info),
+          const Icon(
+            Icons.auto_awesome_rounded,
+            size: 16,
+            color: AppColors.info,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              isKn ? 'AI ಬೆಲೆ ಅಂದಾಜು · ಸ್ಥಳ ಮತ್ತು ಋತುವಿನ ಆಧಾರಿತ' : 'AI price estimate · Based on location & season',
+              isKn
+                  ? 'AI ಬೆಲೆ ಅಂದಾಜು · ಸ್ಥಳ ಮತ್ತು ಋತುವಿನ ಆಧಾರಿತ'
+                  : 'AI price estimate · Based on location & season',
               style: const TextStyle(fontSize: 13, color: AppColors.info),
             ),
           ),
@@ -353,7 +371,11 @@ class _LocationRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Icon(Icons.location_on_rounded, size: 16, color: AppColors.accentGreen),
+        const Icon(
+          Icons.location_on_rounded,
+          size: 16,
+          color: AppColors.accentGreen,
+        ),
         const SizedBox(width: 4),
         Text(
           '$district, $state',
@@ -374,7 +396,10 @@ class _LocationRow extends StatelessWidget {
             ),
             child: Text(
               manualLabel,
-              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+              ),
             ),
           ),
         ],
@@ -418,7 +443,9 @@ class _PriceCard extends StatelessWidget {
           _PriceRow(
             dotColor: AppColors.warning,
             label: lang.translate('fair_price'),
-            caption: isKn ? 'ಶಿಫಾರಸು ಮಾಡಿದ ಮಾರಾಟ ಬೆಲೆ' : 'Recommended selling price',
+            caption: isKn
+                ? 'ಶಿಫಾರಸು ಮಾಡಿದ ಮಾರಾಟ ಬೆಲೆ'
+                : 'Recommended selling price',
             price: fairPrice,
           ),
           const Divider(height: 1),
@@ -463,20 +490,39 @@ class _PriceRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
                 if (caption != null) ...[
                   const SizedBox(height: 2),
-                  Text(caption!, style: const TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                  Text(
+                    caption!,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
                 ],
               ],
             ),
           ),
           Text(
             '₹${price.toStringAsFixed(0)}',
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
           ),
           const SizedBox(width: 4),
-          const Text('/kg', style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+          const Text(
+            '/kg',
+            style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+          ),
         ],
       ),
     );
@@ -511,7 +557,11 @@ class _ReasoningCard extends StatelessWidget {
         children: [
           Row(
             children: const [
-              Icon(Icons.info_outline_rounded, size: 14, color: AppColors.textTertiary),
+              Icon(
+                Icons.info_outline_rounded,
+                size: 14,
+                color: AppColors.textTertiary,
+              ),
               SizedBox(width: 6),
               Text(
                 'Quality & Market Insight',
@@ -582,9 +632,20 @@ class _ConfidenceRow extends StatelessWidget {
 
     return Row(
       children: [
-        Container(width: 8, height: 8, decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle)),
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
+        ),
         const SizedBox(width: 10),
-        Text(text, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, fontWeight: FontWeight.w500)),
+        Text(
+          text,
+          style: const TextStyle(
+            fontSize: 14,
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
         const Spacer(),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -595,7 +656,11 @@ class _ConfidenceRow extends StatelessWidget {
           ),
           child: Text(
             chipText,
-            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ],

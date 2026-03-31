@@ -8,6 +8,8 @@ import 'settings_screen.dart';
 import 'camera_screen.dart';
 import 'history_screen.dart';
 import '../widgets/offline_banner.dart';
+import '../services/price_sync_service.dart';
+import '../services/location_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -28,6 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _connectivitySubscription = _connectivity.onConnectivityChanged.listen(
       _updateConnectionStatus,
     );
+    _triggerBackgroundSync();
   }
 
   @override
@@ -56,6 +59,18 @@ class _HomeScreenState extends State<HomeScreen> {
           ? ConnectivityResult.none
           : result.first;
     });
+  }
+
+  Future<void> _triggerBackgroundSync() async {
+    // Only run if we have internet
+    final connectivity = await Connectivity().checkConnectivity();
+    if (connectivity.contains(ConnectivityResult.none) && connectivity.length == 1) return;
+
+    // Get location (uses cache — no extra API call)
+    final location = await LocationService().getCurrentLocation();
+
+    // Run sync in background — do not await, do not show UI
+    PriceSyncService().syncPrices(location).catchError((_) {});
   }
 
   @override
@@ -247,53 +262,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
           // OFFLINE BANNER (floating, iOS-style)
           OfflineBanner(isOffline: isOffline),
-        ],
-      ),
-    );
-  }
-}
-
-class _MiniStatCard extends StatelessWidget {
-  final IconData icon;
-  final String value;
-  final String label;
-
-  const _MiniStatCard({
-    required this.icon,
-    required this.value,
-    required this.label,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: AppColors.accentGreen, size: 20),
-          const SizedBox(height: 10),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppColors.textSecondary,
-            ),
-          ),
         ],
       ),
     );

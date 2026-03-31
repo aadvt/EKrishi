@@ -22,6 +22,8 @@ void main() async {
   await Hive.openBox('location');
   await Hive.openBox('history');
   await Hive.openBox('prices');
+  await Hive.openBox('cached_prices');
+  await Hive.openBox('price_sync_meta');
   
   runApp(
     MultiProvider(

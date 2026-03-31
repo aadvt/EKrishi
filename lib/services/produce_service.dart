@@ -54,22 +54,22 @@ class ProduceService {
 
       Respond ONLY with this exact JSON, no markdown, no extra text:
       {
-        \"name_english\": \"Tomato\",
-        \"name_kannada\": \"ಟೊಮೆಟೊ\",
-        \"confidence\": 0.95,
-        \"category\": \"vegetable\",
-        \"ripeness\": \"ripe\",
-        \"grade\": \"A\",
-        \"grade_reasoning\": \"Vibrant red color, firm appearance, no visible blemishes\",
-        \"price_min_per_kg\": 18,
-        \"price_max_per_kg\": 28,
-        \"price_fair_per_kg\": 22,
-        \"price_reasoning\": \"Grade A tomatoes in peak Karnataka season. Good color and firmness justify premium pricing.\",
-        \"price_confidence\": \"high\"
+        "name_english": "Tomato",
+        "name_kannada": "ಟೊಮೆಟೊ",
+        "confidence": 0.95,
+        "category": "vegetable",
+        "ripeness": "ripe",
+        "grade": "A",
+        "grade_reasoning": "Vibrant red color, firm appearance, no visible blemishes",
+        "price_min_per_kg": 18,
+        "price_max_per_kg": 28,
+        "price_fair_per_kg": 22,
+        "price_reasoning": "Grade A tomatoes in peak Karnataka season. Good color and firmness justify premium pricing.",
+        "price_confidence": "high"
       }
 
       If the image does not contain a fruit or vegetable, respond with 
-      only: {\"error\": \"not_produce\"}
+      only: {"error": "not_produce"}
       """;
 
       final response = await http
