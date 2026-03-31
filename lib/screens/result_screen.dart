@@ -94,7 +94,10 @@ class _ResultScreenState extends State<ResultScreen> {
               produceNameKannada: widget.produceResult.nameKannada,
             ),
             const SizedBox(height: 16),
-            _AiEstimateChip(isKn: isKn),
+            _AiEstimateChip(
+              isKn: isKn,
+              priceReasoning: widget.produceResult.priceReasoning,
+            ),
             const SizedBox(height: 16),
             _LocationRow(
               district: widget.locationResult.district,
@@ -320,11 +323,41 @@ class _BadgeStyle {
 
 class _AiEstimateChip extends StatelessWidget {
   final bool isKn;
+  final String priceReasoning;
 
-  const _AiEstimateChip({required this.isKn});
+  const _AiEstimateChip({required this.isKn, required this.priceReasoning});
 
   @override
   Widget build(BuildContext context) {
+    final isCached = priceReasoning.contains('Cached price from last sync');
+
+    if (isCached) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF3E0),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.wifi_off_rounded,
+              size: 16,
+              color: Color(0xFFF4A261),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                isKn ? 'ಆಫ್ಲೈನ್ ಮೋಡ್ · ಸಂಗ್ರಹಿಸಿದ ಬೆಲೆ ಡೇಟಾ' : 'Offline mode · Cached price data',
+                style: const TextStyle(fontSize: 13, color: Color(0xFFF4A261), fontWeight: FontWeight.w500),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

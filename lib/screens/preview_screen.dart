@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../utils/language_provider.dart';
 import '../constants/app_colors.dart';
 import '../services/produce_service.dart';
@@ -10,6 +11,7 @@ import '../models/produce_result.dart';
 import '../models/location_result.dart';
 import '../utils/exceptions.dart';
 import 'result_screen.dart';
+import 'offline_scan_screen.dart';
 
 class PreviewScreen extends StatefulWidget {
   final File imageFile;
@@ -42,6 +44,21 @@ class _PreviewScreenState extends State<PreviewScreen> with SingleTickerProvider
   }
 
   Future<void> _analyseProduce() async {
+    final connectivity = await Connectivity().checkConnectivity();
+    final isOffline = connectivity.contains(ConnectivityResult.none) && connectivity.length == 1;
+
+    if (isOffline) {
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OfflineScanScreen(imageFile: widget.imageFile),
+          ),
+        );
+      }
+      return;
+    }
+
     setState(() => _isAnalyzing = true);
 
     try {
