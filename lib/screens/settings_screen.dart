@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 
 import '../constants/app_colors.dart';
 import '../models/location_result.dart';
 import '../services/location_service.dart';
+import '../services/price_sync_service.dart';
 import '../utils/language_provider.dart';
+import 'price_cache_viewer.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -105,6 +108,77 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _SectionLabel(text: 'PRICE SYNC'),
+            _CardContainer(
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.sync_rounded, size: 20, color: AppColors.accentGreen),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                isKn ? 'ಕೊನೆಯ ಬೆಲೆ ಸಿಂಕ್' : 'Last Price Sync',
+                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                PriceSyncService().lastSyncTime() == null
+                                    ? (isKn ? 'ಇನ್ನೂ ಸಿಂಕ್ ಆಗಿಲ್ಲ' : 'Never synced')
+                                    : DateFormat('MMM d, hh:mm a').format(PriceSyncService().lastSyncTime()!),
+                                style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                              ),
+                            ],
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () async {
+                            final location = await _locationService.getCurrentLocation();
+                            // To force sync, we clear the meta first
+                            await Hive.box('price_sync_meta').clear();
+                            await PriceSyncService().syncPrices(location);
+                            if (mounted) setState(() {});
+                          },
+                          child: Text(isKn ? 'ಈಗ ಸಿಂಕ್ ಮಾಡಿ' : 'Sync Now'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const PriceCacheViewer()),
+                      );
+                    },
+                    borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.list_alt_rounded, size: 20, color: AppColors.textTertiary),
+                          const SizedBox(width: 10),
+                          Text(
+                            isKn ? 'ಕ್ಯಾಶ್ ಮಾಡಲಾದ ಬೆಲೆಗಳನ್ನು ವೀಕ್ಷಿಸಿ' : 'View Cached Prices',
+                            style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                          ),
+                          const Spacer(),
+                          const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
             _SectionLabel(text: 'LANGUAGE'),
             _CardContainer(
               child: Padding(
