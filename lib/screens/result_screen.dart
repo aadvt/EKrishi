@@ -64,6 +64,9 @@ class _ResultScreenState extends State<ResultScreen> {
 
     if (!hasPhone) {
       await _showPhoneNumberSheet();
+      if (!mounted) {
+        return;
+      }
       if (!FarmerService().hasPhoneNumber) {
         return;
       }
@@ -103,20 +106,21 @@ class _ResultScreenState extends State<ResultScreen> {
 
   Future<void> _showPhoneNumberSheet() async {
     final controller = TextEditingController();
+    final parentContext = context;
 
     await showModalBottomSheet<void>(
-      context: context,
+      context: parentContext,
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      builder: (context) => Padding(
+      builder: (sheetContext) => Padding(
         padding: EdgeInsets.only(
           left: 24,
           right: 24,
           top: 16,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 32,
+          bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 32,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -201,7 +205,10 @@ class _ResultScreenState extends State<ResultScreen> {
                 onPressed: () async {
                   final phone = controller.text.trim();
                   if (phone.length != 10 || int.tryParse(phone) == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    if (!mounted) {
+                      return;
+                    }
+                    ScaffoldMessenger.of(parentContext).showSnackBar(
                       const SnackBar(
                         content: Text('Please enter a valid 10-digit number'),
                         backgroundColor: Color(0xFF1A1A1A),
@@ -211,8 +218,8 @@ class _ResultScreenState extends State<ResultScreen> {
                     return;
                   }
                   await FarmerService().savePhoneNumber(phone);
-                  if (context.mounted) {
-                    Navigator.pop(context);
+                  if (sheetContext.mounted) {
+                    Navigator.of(sheetContext).pop();
                   }
                 },
                 child: const Text(
