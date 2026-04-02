@@ -7,11 +7,12 @@ import '../utils/language_provider.dart';
 import '../constants/app_colors.dart';
 import '../services/produce_service.dart';
 import '../services/location_service.dart';
+import '../services/price_sync_service.dart';
+import '../services/tflite_service.dart';
 import '../models/produce_result.dart';
 import '../models/location_result.dart';
 import '../utils/exceptions.dart';
 import 'result_screen.dart';
-import 'offline_scan_screen.dart';
 
 class PreviewScreen extends StatefulWidget {
   final File imageFile;
@@ -22,7 +23,8 @@ class PreviewScreen extends StatefulWidget {
   State<PreviewScreen> createState() => _PreviewScreenState();
 }
 
-class _PreviewScreenState extends State<PreviewScreen> with SingleTickerProviderStateMixin {
+class _PreviewScreenState extends State<PreviewScreen>
+    with SingleTickerProviderStateMixin {
   bool _isAnalyzing = false;
   final ProduceService _produceService = ProduceService();
   final LocationService _locationService = LocationService();
@@ -46,18 +48,119 @@ class _PreviewScreenState extends State<PreviewScreen> with SingleTickerProvider
   Future<void> _analyseProduce() async {
     final connectivityResult = await Connectivity().checkConnectivity();
     final bool isOffline =
-      connectivityResult.contains(ConnectivityResult.none) &&
-      connectivityResult.length == 1;
+        connectivityResult.contains(ConnectivityResult.none) &&
+        connectivityResult.length == 1;
 
     if (isOffline) {
-      setState(() => _isAnalyzing = false);
-      if (!mounted) return;
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => OfflineScanScreen(imageFile: widget.imageFile),
-        ),
-      );
+      // Show loading overlay - TFLite takes 1-2 seconds.
+      setState(() => _isAnalyzing = true);
+
+      try {
+        // Run TFLite identification on device.
+        final tfliteResult = await TfliteService().classifyImage(
+          widget.imageFile,
+        );
+
+        // Get location from cache.
+        final location = await _locationService.getCurrentLocation();
+
+        if (tfliteResult == null || !tfliteResult.isHighConfidence) {
+          // Could not identify - show error and stay.
+          setState(() => _isAnalyzing = false);
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Could not identify this produce offline. Try in better lighting or connect to internet.',
+              ),
+              backgroundColor: const Color(0xFF1A1A1A),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+          return;
+        }
+
+        // Look up the crop details from the master list to get Kannada name.
+        final cropMap = _getOfflineCropDetails(tfliteResult.label);
+
+        // Look up cached price.
+        final cachedPrice = PriceSyncService().getCachedPrice(
+          tfliteResult.label,
+          location.district,
+        );
+
+        if (cachedPrice == null) {
+          setState(() => _isAnalyzing = false);
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'No cached price for ${cropMap['display']} in ${location.district}. Connect to internet to sync prices first.',
+              ),
+              backgroundColor: const Color(0xFF1A1A1A),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+          return;
+        }
+
+        // Build ProduceResult from TFLite + cache data.
+        final produceResult = ProduceResult(
+          nameEnglish: cropMap['display']!,
+          nameKannada: cropMap['kn']!,
+          confidence: tfliteResult.confidence,
+          category: 'vegetable',
+          ripeness: 'unknown',
+          grade: 'B',
+          gradeReasoning:
+              'Identified on-device with '
+              '${(tfliteResult.confidence * 100).toStringAsFixed(0)}% confidence. '
+              'Grade not available offline.',
+          priceMinPerKg: cachedPrice.priceMin,
+          priceMaxPerKg: cachedPrice.priceMax,
+          priceFairPerKg: cachedPrice.priceFair,
+          priceRecommendedMin: cachedPrice.priceFair * 0.9,
+          priceRecommendedMax: cachedPrice.priceFair * 1.1,
+          priceReasoning:
+              'Cached price · Last synced: ${_formatDate(cachedPrice.syncedAt)}',
+          priceConfidence: cachedPrice.isStale ? 'low' : 'medium',
+          isPriceEstimate: true,
+          lowConfidence: tfliteResult.confidence < 0.65,
+        );
+
+        setState(() => _isAnalyzing = false);
+        if (!mounted) return;
+
+        // Go directly to ResultScreen - no intermediate screen.
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ResultScreen(
+              imageFile: widget.imageFile,
+              produceResult: produceResult,
+              locationResult: location,
+            ),
+          ),
+        );
+      } catch (e) {
+        setState(() => _isAnalyzing = false);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Offline identification failed. Please try again.'),
+            backgroundColor: Color(0xFF1A1A1A),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
       return;
     }
 
@@ -65,7 +168,8 @@ class _PreviewScreenState extends State<PreviewScreen> with SingleTickerProvider
 
     try {
       // 1. Get current location for regional pricing context
-      final LocationResult location = await _locationService.getCurrentLocation();
+      final LocationResult location = await _locationService
+          .getCurrentLocation();
 
       // 2. Identify and price produce via Gemini
       final ProduceResult produceResult = await _produceService.identifyProduce(
@@ -102,8 +206,11 @@ class _PreviewScreenState extends State<PreviewScreen> with SingleTickerProvider
 
   void _showErrorSnackBar(String messageKeyOrDirectMessage) {
     if (!mounted) return;
-    
-    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+
+    final languageProvider = Provider.of<LanguageProvider>(
+      context,
+      listen: false,
+    );
     String message;
     try {
       message = languageProvider.translate(messageKeyOrDirectMessage);
@@ -118,6 +225,79 @@ class _PreviewScreenState extends State<PreviewScreen> with SingleTickerProvider
         behavior: SnackBarBehavior.floating,
       ),
     );
+  }
+
+  // Maps TFLite label to display name + Kannada.
+  Map<String, String> _getOfflineCropDetails(String label) {
+    const crops = {
+      'tomato': {'display': 'Tomato', 'kn': 'ಟೊಮೆಟೊ'},
+      'onion': {'display': 'Onion', 'kn': 'ಈರುಳ್ಳಿ'},
+      'potato': {'display': 'Potato', 'kn': 'ಆಲೂಗಡ್ಡೆ'},
+      'eggplant': {'display': 'Brinjal', 'kn': 'ಬದನೆಕಾಯಿ'},
+      'cabbage': {'display': 'Cabbage', 'kn': 'ಎಲೆಕೋಸು'},
+      'cauliflower': {'display': 'Cauliflower', 'kn': 'ಹೂಕೋಸು'},
+      'carrot': {'display': 'Carrot', 'kn': 'ಗಾಜರ'},
+      'beans': {'display': 'Beans', 'kn': 'ಬೀನ್ಸ್'},
+      'capsicum': {'display': 'Green Chilli', 'kn': 'ಹಸಿರು ಮೆಣಸಿನಕಾಯಿ'},
+      'chilli': {'display': 'Green Chilli', 'kn': 'ಹಸಿರು ಮೆಣಸಿನಕಾಯಿ'},
+      'banana': {'display': 'Banana', 'kn': 'ಬಾಳೆಹಣ್ಣು'},
+      'mango': {'display': 'Mango', 'kn': 'ಮಾವಿನಹಣ್ಣು'},
+      'papaya': {'display': 'Papaya', 'kn': 'ಪಪ್ಪಾಯಿ'},
+      'pineapple': {'display': 'Pineapple', 'kn': 'ಅನಾನಸ್'},
+      'watermelon': {'display': 'Watermelon', 'kn': 'ಕಲ್ಲಂಗಡಿ'},
+      'corn': {'display': 'Maize', 'kn': 'ಮೆಕ್ಕೆಜೋಳ'},
+      'ginger': {'display': 'Ginger', 'kn': 'ಶುಂಠಿ'},
+      'garlic': {'display': 'Garlic', 'kn': 'ಬೆಳ್ಳುಳ್ಳಿ'},
+      'pomegranate': {'display': 'Pomegranate', 'kn': 'ದಾಳಿಂಬೆ'},
+      'beetroot': {'display': 'Beetroot', 'kn': 'ಬೀಟ್‌ರೂಟ್'},
+      'radish': {'display': 'Radish', 'kn': 'ಮೂಲಂಗಿ'},
+      'peas': {'display': 'Peas', 'kn': 'ಅವರೆಕಾಳು'},
+      'cucumber': {'display': 'Cucumber', 'kn': 'ಸೌತೆಕಾಯಿ'},
+      'spinach': {'display': 'Spinach', 'kn': 'ಪಾಲಕ್'},
+      'grapes': {'display': 'Grapes', 'kn': 'ದ್ರಾಕ್ಷಿ'},
+      'apple': {'display': 'Apple', 'kn': 'ಸೇಬು'},
+      'orange': {'display': 'Orange', 'kn': 'ಕಿತ್ತಳೆ'},
+      'lemon': {'display': 'Lemon', 'kn': 'ನಿಂಬೆ'},
+      'coconut': {'display': 'Coconut', 'kn': 'ತೆಂಗಿನಕಾಯಿ'},
+      'kiwi': {'display': 'Kiwi', 'kn': 'ಕಿವಿ'},
+      'pear': {'display': 'Pear', 'kn': 'ಪಿಯರ್'},
+    };
+
+    final found = crops[label.toLowerCase()];
+    if (found != null) {
+      return {
+        'display': found['display']!,
+        'kn': found['kn']!,
+      };
+    }
+
+    if (label.isEmpty) {
+      return {'display': 'Unknown', 'kn': 'unknown'};
+    }
+
+    // Fallback: capitalize the label itself.
+    return {
+      'display': label[0].toUpperCase() + label.substring(1),
+      'kn': label,
+    };
+  }
+
+  String _formatDate(DateTime date) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
   @override
@@ -175,26 +355,41 @@ class _PreviewScreenState extends State<PreviewScreen> with SingleTickerProvider
                   width: double.infinity,
                   decoration: const BoxDecoration(
                     color: AppColors.surface,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(28),
+                    ),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 28,
+                    vertical: 24,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.surfaceAlt,
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          languageProvider.isKannada ? 'ಫೋಟೋ ಪರಿಶೀಲಿಸಿ' : 'Review Photo',
-                          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          languageProvider.isKannada
+                              ? 'ಫೋಟೋ ಪರಿಶೀಲಿಸಿ'
+                              : 'Review Photo',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        languageProvider.isKannada ? 'ಬೆಳೆ ಸ್ಪಷ್ಟವಾಗಿ ಕಾಣಿಸುತ್ತಿದೆಯೇ?' : 'Is the produce clearly visible?',
+                        languageProvider.isKannada
+                            ? 'ಬೆಳೆ ಸ್ಪಷ್ಟವಾಗಿ ಕಾಣಿಸುತ್ತಿದೆಯೇ?'
+                            : 'Is the produce clearly visible?',
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w600,
@@ -219,11 +414,16 @@ class _PreviewScreenState extends State<PreviewScreen> with SingleTickerProvider
                       ),
                       const SizedBox(height: 12),
                       OutlinedButton(
-                        onPressed: _isAnalyzing ? null : () => Navigator.pop(context),
+                        onPressed: _isAnalyzing
+                            ? null
+                            : () => Navigator.pop(context),
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size(double.infinity, 52),
                           foregroundColor: AppColors.textSecondary,
-                          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                          textStyle: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                         child: Text(languageProvider.translate('retake')),
                       ),
@@ -250,7 +450,11 @@ class _PreviewScreenState extends State<PreviewScreen> with SingleTickerProvider
                       width: 44,
                       height: 44,
                       child: Center(
-                        child: Icon(Icons.close_rounded, color: Colors.white, size: 22),
+                        child: Icon(
+                          Icons.close_rounded,
+                          color: Colors.white,
+                          size: 22,
+                        ),
                       ),
                     ),
                   ),
@@ -270,7 +474,9 @@ class _PreviewScreenState extends State<PreviewScreen> with SingleTickerProvider
                   child: AnimatedBuilder(
                     animation: _pulseController,
                     builder: (context, _) {
-                      final t = Curves.easeInOut.transform(_pulseController.value);
+                      final t = Curves.easeInOut.transform(
+                        _pulseController.value,
+                      );
                       final outerScale = 0.95 + (0.08 * t);
 
                       return Column(
@@ -311,7 +517,10 @@ class _PreviewScreenState extends State<PreviewScreen> with SingleTickerProvider
                             languageProvider.isKannada
                                 ? 'ಪ್ರಸ್ತುತ ಮಾರುಕಟ್ಟೆ ಬೆಲೆಗಳನ್ನು ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ...'
                                 : 'Checking current market prices...',
-                            style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                         ],
                       );
