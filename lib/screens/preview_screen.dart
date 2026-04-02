@@ -44,18 +44,20 @@ class _PreviewScreenState extends State<PreviewScreen> with SingleTickerProvider
   }
 
   Future<void> _analyseProduce() async {
-    final connectivity = await Connectivity().checkConnectivity();
-    final isOffline = connectivity.contains(ConnectivityResult.none) && connectivity.length == 1;
+    final connectivityResult = await Connectivity().checkConnectivity();
+    final bool isOffline =
+      connectivityResult.contains(ConnectivityResult.none) &&
+      connectivityResult.length == 1;
 
     if (isOffline) {
-      if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => OfflineScanScreen(imageFile: widget.imageFile),
-          ),
-        );
-      }
+      setState(() => _isAnalyzing = false);
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => OfflineScanScreen(imageFile: widget.imageFile),
+        ),
+      );
       return;
     }
 

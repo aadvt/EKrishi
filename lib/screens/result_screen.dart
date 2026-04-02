@@ -264,47 +264,69 @@ class _ProduceHeroCard extends StatelessWidget {
 
   _BadgeStyle _gradeBadge(String value) {
     final v = value.toUpperCase().trim();
-    if (v == 'A') {
-      return const _BadgeStyle(
-        label: 'Grade A',
-        background: Color(0xFFD8F3DC),
-        foreground: Color(0xFF2D6A4F),
-      );
+    switch (v) {
+      case 'A':
+        return const _BadgeStyle(
+          label: 'Grade A',
+          background: Color(0xFFD8F3DC),
+          foreground: Color(0xFF2D6A4F),
+        );
+      case 'B':
+        return const _BadgeStyle(
+          label: 'Grade B',
+          background: Color(0xFFFFF3E0),
+          foreground: Color(0xFFF4A261),
+        );
+      case 'C':
+        return const _BadgeStyle(
+          label: 'Grade C',
+          background: Color(0xFFFFEBEE),
+          foreground: Color(0xFFE63946),
+        );
+      default:
+        return const _BadgeStyle(
+          label: 'Grade B',
+          background: Color(0xFFFFF3E0),
+          foreground: Color(0xFFF4A261),
+        );
     }
-    if (v == 'C') {
-      return const _BadgeStyle(
-        label: 'Grade C',
-        background: Color(0xFFFFEBEE),
-        foreground: Color(0xFFE63946),
-      );
-    }
-    return const _BadgeStyle(
-      label: 'Grade B',
-      background: Color(0xFFFFF3E0),
-      foreground: Color(0xFFF4A261),
-    );
   }
 
   _BadgeStyle _ripenessBadge(String value) {
-    final v = value.toLowerCase().trim();
-    if (v == 'ripe') {
-      return const _BadgeStyle(
-        label: 'ripe',
-        background: Color(0xFFFFF3E0),
-        foreground: AppColors.warning,
-      );
+    final ripeness = value.toLowerCase().trim();
+
+    Color badgeBg;
+    Color badgeText;
+    String badgeLabel;
+
+    switch (ripeness) {
+      case 'fresh':
+        badgeBg = const Color(0xFFD8F3DC);
+        badgeText = const Color(0xFF2D6A4F);
+        badgeLabel = 'Fresh';
+        break;
+      case 'ripe':
+        badgeBg = const Color(0xFFFFF3E0);
+        badgeText = const Color(0xFFF4A261);
+        badgeLabel = 'Ripe';
+        break;
+      case 'overripe':
+        badgeBg = const Color(0xFFFFEBEE);
+        badgeText = const Color(0xFFE63946);
+        badgeLabel = 'Overripe';
+        break;
+      case 'unknown':
+      default:
+        badgeBg = const Color(0xFFF5F5F5);
+        badgeText = const Color(0xFF6B6B6B);
+        badgeLabel = 'Offline';
+        break;
     }
-    if (v == 'overripe') {
-      return const _BadgeStyle(
-        label: 'overripe',
-        background: Color(0xFFFFEBEE),
-        foreground: AppColors.error,
-      );
-    }
-    return const _BadgeStyle(
-      label: 'fresh',
-      background: AppColors.softGreen,
-      foreground: AppColors.accentGreen,
+
+    return _BadgeStyle(
+      label: badgeLabel,
+      background: badgeBg,
+      foreground: badgeText,
     );
   }
 }
@@ -329,28 +351,33 @@ class _AiEstimateChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isCached = priceReasoning.contains('Cached price from last sync');
+    final bool isOfflineData = priceReasoning.contains('Cached price');
 
-    if (isCached) {
+    if (isOfflineData) {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: const Color(0xFFFFF3E0),
           borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFFFE0B2)),
         ),
         child: Row(
           children: [
             const Icon(
               Icons.wifi_off_rounded,
-              size: 16,
               color: Color(0xFFF4A261),
+              size: 16,
             ),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 isKn ? 'ಆಫ್ಲೈನ್ ಮೋಡ್ · ಸಂಗ್ರಹಿಸಿದ ಬೆಲೆ ಡೇಟಾ' : 'Offline mode · Cached price data',
-                style: const TextStyle(fontSize: 13, color: Color(0xFFF4A261), fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFFE65100),
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ],
