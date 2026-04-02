@@ -21,6 +21,7 @@ class MarketplaceService {
     ProduceResult produceResult,
     LocationResult locationResult,
     String farmerPhone,
+    double quantityKg,
   ) async {
     final String? neonApiUrl = dotenv.env['NEON_API_URL'];
 
@@ -67,7 +68,7 @@ class MarketplaceService {
               'farmer_phone': farmerPhone,
               'produce_name': produceResult.nameEnglish,
               'produce_name_local': produceResult.nameKannada,
-              'quantity_kg': 1.0,
+              'quantity_kg': quantityKg,
               'price_per_kg': produceResult.priceFairPerKg,
               'price_min_per_kg': produceResult.priceMinPerKg,
               'price_max_per_kg': produceResult.priceMaxPerKg,

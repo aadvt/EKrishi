@@ -9,6 +9,7 @@ import '../utils/exceptions.dart';
 class ProduceService {
   Future<String> generateMarketInsight({
     required String produceName,
+    String? produceNameKannada,
     required String district,
     required String state,
   }) async {
@@ -20,21 +21,33 @@ class ProduceService {
     final String currentMonth = DateFormat('MMMM').format(DateTime.now());
 
     try {
+      final kannadaName = (produceNameKannada ?? '').trim();
       final prompt =
           '''
 You are an agricultural market advisor for Indian farmers.
 
 Produce: $produceName
+Produce name in Kannada: ${kannadaName.isEmpty ? 'not provided' : kannadaName}
 Location: $district, $state, India
 Current month/season: $currentMonth
 
-Give a concise market insight for this produce right now.
-Include:
+Give a concise market insight for this produce right now in BOTH English and Kannada.
+
+Include in each language:
 1) seasonal demand/supply signal
 2) short selling suggestion (today vs hold 1-2 days)
 3) one practical risk/watch-out
 
-Respond as plain text in 3-4 short lines. No markdown.
+Return plain text in this exact format only. No markdown:
+English:
+- <line 1>
+- <line 2>
+- <line 3>
+
+Kannada:
+- <line 1>
+- <line 2>
+- <line 3>
 ''';
 
       final response = await http

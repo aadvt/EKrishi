@@ -102,6 +102,11 @@ class _ResultScreenState extends State<ResultScreen> {
     }
 
     final phone = FarmerService().getPhoneNumber()!;
+    final quantityKg = await _showQuantitySheet();
+
+    if (quantityKg == null || !mounted) {
+      return;
+    }
 
     setState(() => _isPushingToMarket = true);
 
@@ -109,6 +114,7 @@ class _ResultScreenState extends State<ResultScreen> {
       _displayProduceResult,
       widget.locationResult,
       phone,
+      quantityKg,
     );
 
     if (!mounted) {
@@ -139,6 +145,7 @@ class _ResultScreenState extends State<ResultScreen> {
     try {
       final insight = await ProduceService().generateMarketInsight(
         produceName: _displayProduceResult.nameEnglish,
+        produceNameKannada: _displayProduceResult.nameKannada,
         district: widget.locationResult.district,
         state: widget.locationResult.state,
       );
@@ -298,6 +305,87 @@ class _ResultScreenState extends State<ResultScreen> {
     );
 
     controller.dispose();
+  }
+
+  Future<double?> _showQuantitySheet() async {
+    final controller = TextEditingController();
+    String? errorText;
+
+    final quantityKg = await showDialog<double>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (statefulContext, setDialogState) {
+            var isClosing = false;
+
+            void submit() {
+              final raw = controller.text.trim().replaceAll(',', '.');
+              final parsed = double.tryParse(raw);
+
+              if (parsed == null || parsed <= 0) {
+                setDialogState(() {
+                  errorText = 'Please enter a valid quantity in kg';
+                });
+                return;
+              }
+
+              if (isClosing) {
+                return;
+              }
+              isClosing = true;
+
+              FocusManager.instance.primaryFocus?.unfocus();
+
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!dialogContext.mounted) {
+                  return;
+                }
+                Navigator.of(dialogContext).pop(parsed);
+              });
+            }
+
+            return AlertDialog(
+              title: const Text('Enter quantity to list'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('How many kilograms are you selling?'),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: controller,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    textInputAction: TextInputAction.done,
+                    autofocus: true,
+                    onSubmitted: (_) => submit(),
+                    decoration: InputDecoration(
+                      labelText: 'Quantity in kg',
+                      suffixText: 'kg',
+                      errorText: errorText,
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: submit,
+                  child: const Text('Continue'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    controller.dispose();
+    return quantityKg;
   }
 
   @override
@@ -929,10 +1017,121 @@ class _ReasoningCard extends StatelessWidget {
     required this.gradeReasoning,
   });
 
+  ({List<String> english, List<String> kannada})? _parseBilingualInsight(
+    String raw,
+  ) {
+    final match = RegExp(
+      r'English\s*:\s*([\s\S]*?)\s*Kannada\s*:\s*([\s\S]*)',
+      caseSensitive: false,
+    ).firstMatch(raw);
+
+    if (match == null) return null;
+
+    final english = _normalizeLines(match.group(1) ?? '');
+    final kannada = _normalizeLines(match.group(2) ?? '');
+
+    if (english.isEmpty && kannada.isEmpty) return null;
+    return (english: english, kannada: kannada);
+  }
+
+  List<String> _normalizeLines(String block) {
+    return block
+        .split('\n')
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .map((line) => line.replaceFirst(RegExp(r'^[-•\d.)\s]+'), '').trim())
+        .where((line) => line.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  Widget _sectionHeader({
+    required IconData icon,
+    required String label,
+    required Color bg,
+    required Color fg,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: fg),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: fg,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _insightLine(String line) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            margin: const EdgeInsets.only(top: 7),
+            decoration: const BoxDecoration(
+              color: AppColors.textTertiary,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              line,
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+                height: 1.45,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _insightPanel({required Widget header, required List<String> lines}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          header,
+          const SizedBox(height: 10),
+          ...lines.map(_insightLine),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final hasPriceRea = priceReasoning.trim().isNotEmpty;
     final hasGradeRea = gradeReasoning.trim().isNotEmpty;
+    final parsedBilingual = hasPriceRea
+        ? _parseBilingualInsight(priceReasoning)
+        : null;
 
     if (!hasPriceRea && !hasGradeRea) return const SizedBox.shrink();
 
@@ -966,25 +1165,61 @@ class _ReasoningCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           if (hasGradeRea) ...[
-            Text(
-              '🔍 $gradeReasoning',
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-                height: 1.5,
-                fontStyle: FontStyle.italic,
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Text(
+                '🔍 $gradeReasoning',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                  height: 1.5,
+                ),
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 10),
           ],
-          if (hasPriceRea)
-            Text(
-              '📈 $priceReasoning',
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-                height: 1.5,
-                fontStyle: FontStyle.italic,
+          if (hasPriceRea && parsedBilingual != null) ...[
+            _insightPanel(
+              header: _sectionHeader(
+                icon: Icons.translate_rounded,
+                label: 'English',
+                bg: const Color(0xFFEAF3FF),
+                fg: const Color(0xFF1F5FA8),
+              ),
+              lines: parsedBilingual.english,
+            ),
+            const SizedBox(height: 10),
+            _insightPanel(
+              header: _sectionHeader(
+                icon: Icons.language_rounded,
+                label: 'Kannada',
+                bg: const Color(0xFFEAF8EF),
+                fg: const Color(0xFF216E3A),
+              ),
+              lines: parsedBilingual.kannada,
+            ),
+          ] else if (hasPriceRea)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Text(
+                '📈 $priceReasoning',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                  height: 1.5,
+                ),
               ),
             ),
         ],
