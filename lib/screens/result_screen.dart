@@ -12,6 +12,7 @@ import '../models/scan_history.dart';
 import '../services/farmer_service.dart';
 import '../services/marketplace_service.dart';
 import '../services/produce_service.dart';
+import '../services/tts_service.dart';
 import '../utils/language_provider.dart';
 import 'camera_screen.dart';
 
@@ -37,6 +38,7 @@ class _ResultScreenState extends State<ResultScreen> {
   bool _hasInternet = false;
   bool _isLoadingInsight = false;
   bool _hasRequestedInsight = false;
+  bool _isSpeaking = false;
   late ProduceResult _displayProduceResult;
 
   bool get _isTfliteResult =>
@@ -57,6 +59,12 @@ class _ResultScreenState extends State<ResultScreen> {
     _displayProduceResult = widget.produceResult;
     _checkInternet();
     _saveToHistory();
+  }
+
+  @override
+  void dispose() {
+    TtsService().stop();
+    super.dispose();
   }
 
   Future<void> _checkInternet() async {
@@ -92,11 +100,17 @@ class _ResultScreenState extends State<ResultScreen> {
     final hasPhone = FarmerService().hasPhoneNumber;
 
     if (!hasPhone) {
-      await _showPhoneNumberSheet();
+      final didSavePhone = await _showPhoneNumberSheet();
       if (!mounted) {
         return;
       }
-      if (!FarmerService().hasPhoneNumber) {
+      if (!didSavePhone || !FarmerService().hasPhoneNumber) {
+        return;
+      }
+
+      // Allow route and keyboard teardown to settle before opening kg dialog.
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+      if (!mounted) {
         return;
       }
     }
@@ -175,11 +189,56 @@ class _ResultScreenState extends State<ResultScreen> {
     }
   }
 
-  Future<void> _showPhoneNumberSheet() async {
+  Future<void> _toggleSpeech() async {
+    if (_isSpeaking) {
+      await TtsService().stop();
+      if (mounted) {
+        setState(() => _isSpeaking = false);
+      }
+      return;
+    }
+
+    final lang = Provider.of<LanguageProvider>(
+      context,
+      listen: false,
+    ).currentLanguage;
+
+    final cropName = lang == 'kn'
+        ? _displayProduceResult.nameKannada
+        : _displayProduceResult.nameEnglish;
+
+    String reasoning = _displayProduceResult.priceReasoning;
+    if (reasoning.contains('·')) {
+      reasoning = reasoning.split('·').first.trim();
+    }
+    if (reasoning.contains('.')) {
+      reasoning = '${reasoning.split('.').first.trim()}.';
+    }
+
+    final summary = TtsService().buildSummary(
+      cropName: cropName,
+      fairPrice: _displayProduceResult.priceFairPerKg,
+      minPrice: _displayProduceResult.priceRecommendedMin,
+      maxPrice: _displayProduceResult.priceRecommendedMax,
+      priceReasoning: reasoning,
+      language: lang,
+    );
+
+    setState(() => _isSpeaking = true);
+    await TtsService().speak(text: summary, language: lang);
+
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        setState(() => _isSpeaking = false);
+      }
+    });
+  }
+
+  Future<bool> _showPhoneNumberSheet() async {
     final controller = TextEditingController();
     final parentContext = context;
 
-    await showModalBottomSheet<void>(
+    final didSave = await showModalBottomSheet<bool>(
       context: parentContext,
       isScrollControlled: true,
       backgroundColor: Colors.white,
@@ -289,9 +348,14 @@ class _ResultScreenState extends State<ResultScreen> {
                     return;
                   }
                   await FarmerService().savePhoneNumber(phone);
-                  if (sheetContext.mounted) {
-                    Navigator.of(sheetContext).pop();
-                  }
+
+                  FocusManager.instance.primaryFocus?.unfocus();
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (!sheetContext.mounted) {
+                      return;
+                    }
+                    Navigator.of(sheetContext).pop(true);
+                  });
                 },
                 child: const Text(
                   'Save & Continue',
@@ -305,6 +369,7 @@ class _ResultScreenState extends State<ResultScreen> {
     );
 
     controller.dispose();
+    return didSave ?? false;
   }
 
   Future<double?> _showQuantitySheet() async {
@@ -406,6 +471,26 @@ class _ResultScreenState extends State<ResultScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
+          GestureDetector(
+            onTap: _toggleSpeech,
+            child: Container(
+              margin: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: _isSpeaking
+                    ? const Color(0xFFD8F3DC)
+                    : const Color(0xFFF5F5F5),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                _isSpeaking ? Icons.stop_rounded : Icons.volume_up_rounded,
+                size: 18,
+                color: _isSpeaking
+                    ? const Color(0xFF2D6A4F)
+                    : const Color(0xFF6B6B6B),
+              ),
+            ),
+          ),
           IconButton(
             icon: const Icon(
               Icons.share_rounded,

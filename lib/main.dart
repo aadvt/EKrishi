@@ -7,6 +7,7 @@ import 'utils/language_provider.dart';
 import 'constants/app_theme.dart';
 import 'models/scan_history.dart';
 import 'services/tflite_service.dart';
+import 'services/tts_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,6 +30,7 @@ void main() async {
 
   // Load TFLite model once and keep interpreter in memory.
   await TfliteService().loadModel();
+  await TtsService().initialize();
 
   runApp(
     MultiProvider(
