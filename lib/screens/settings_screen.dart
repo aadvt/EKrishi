@@ -440,10 +440,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   fontSize: 13,
                                   color: AppColors.textSecondary,
                                 ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ],
                           ),
                         ),
+                        if (_currentLocation?.isManualOverride == true)
+                          const SizedBox(width: 8),
                         if (_currentLocation?.isManualOverride == true)
                           Container(
                             padding: const EdgeInsets.symmetric(
