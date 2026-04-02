@@ -6,6 +6,7 @@ import 'screens/home_screen.dart';
 import 'utils/language_provider.dart';
 import 'constants/app_theme.dart';
 import 'models/scan_history.dart';
+import 'services/tflite_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,6 +25,9 @@ void main() async {
   await Hive.openBox('prices');
   await Hive.openBox('cached_prices');
   await Hive.openBox('price_sync_meta');
+
+  // Load TFLite model once and keep interpreter in memory.
+  await TfliteService().loadModel();
   
   runApp(
     MultiProvider(
