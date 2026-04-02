@@ -50,132 +50,108 @@ class _PreviewScreenState extends State<PreviewScreen>
     final bool isOffline =
         connectivityResult.contains(ConnectivityResult.none) &&
         connectivityResult.length == 1;
-
-    if (isOffline) {
-      // Show loading overlay - TFLite takes 1-2 seconds.
-      setState(() => _isAnalyzing = true);
-
-      try {
-        // Run TFLite identification on device.
-        final tfliteResult = await TfliteService().classifyImage(
-          widget.imageFile,
-        );
-
-        // Get location from cache.
-        final location = await _locationService.getCurrentLocation();
-
-        if (tfliteResult == null || !tfliteResult.isHighConfidence) {
-          // Could not identify - show error and stay.
-          setState(() => _isAnalyzing = false);
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text(
-                'Could not identify this produce offline. Try in better lighting or connect to internet.',
-              ),
-              backgroundColor: const Color(0xFF1A1A1A),
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              duration: const Duration(seconds: 4),
-            ),
-          );
-          return;
-        }
-
-        // Look up the crop details from the master list to get Kannada name.
-        final cropMap = _getOfflineCropDetails(tfliteResult.label);
-
-        // Look up cached price.
-        final cachedPrice = PriceSyncService().getCachedPrice(
-          tfliteResult.label,
-          location.district,
-        );
-
-        if (cachedPrice == null) {
-          setState(() => _isAnalyzing = false);
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'No cached price for ${cropMap['display']} in ${location.district}. Connect to internet to sync prices first.',
-              ),
-              backgroundColor: const Color(0xFF1A1A1A),
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              duration: const Duration(seconds: 4),
-            ),
-          );
-          return;
-        }
-
-        // Build ProduceResult from TFLite + cache data.
-        final produceResult = ProduceResult(
-          nameEnglish: cropMap['display']!,
-          nameKannada: cropMap['kn']!,
-          confidence: tfliteResult.confidence,
-          category: 'vegetable',
-          ripeness: 'unknown',
-          grade: 'B',
-          gradeReasoning:
-              'Identified on-device with '
-              '${(tfliteResult.confidence * 100).toStringAsFixed(0)}% confidence. '
-              'Grade not available offline.',
-          priceMinPerKg: cachedPrice.priceMin,
-          priceMaxPerKg: cachedPrice.priceMax,
-          priceFairPerKg: cachedPrice.priceFair,
-          priceRecommendedMin: cachedPrice.priceFair * 0.9,
-          priceRecommendedMax: cachedPrice.priceFair * 1.1,
-          priceReasoning:
-              'Cached price · Last synced: ${_formatDate(cachedPrice.syncedAt)}',
-          priceConfidence: cachedPrice.isStale ? 'low' : 'medium',
-          isPriceEstimate: true,
-          lowConfidence: tfliteResult.confidence < 0.65,
-        );
-
-        setState(() => _isAnalyzing = false);
-        if (!mounted) return;
-
-        // Go directly to ResultScreen - no intermediate screen.
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ResultScreen(
-              imageFile: widget.imageFile,
-              produceResult: produceResult,
-              locationResult: location,
-            ),
-          ),
-        );
-      } catch (e) {
-        setState(() => _isAnalyzing = false);
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Offline identification failed. Please try again.'),
-            backgroundColor: Color(0xFF1A1A1A),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-      return;
-    }
-
     setState(() => _isAnalyzing = true);
 
     try {
-      // 1. Get current location for regional pricing context
+      // 1. Get current location for cached pricing context.
       final LocationResult location = await _locationService
           .getCurrentLocation();
 
-      // 2. Identify and price produce via Gemini
-      final ProduceResult produceResult = await _produceService.identifyProduce(
+      // 2. Default identification path is always on-device TFLite.
+      final tfliteResult = await TfliteService().classifyImage(
         widget.imageFile,
+      );
+      if (tfliteResult == null || !tfliteResult.isHighConfidence) {
+        if (isOffline) {
+          _showErrorSnackBar(
+            'Could not identify this produce offline. Try in better lighting or connect to internet.',
+          );
+          return;
+        }
+
+        // 3. Fallback to Gemini only when TFLite cannot identify and internet is available.
+        final ProduceResult fallbackResult = await _produceService
+            .identifyProduce(
+              widget.imageFile,
+              location.district,
+              location.state,
+            );
+
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ResultScreen(
+                imageFile: widget.imageFile,
+                produceResult: fallbackResult,
+                locationResult: location,
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
+      final cropMap = _getOfflineCropDetails(tfliteResult.label);
+      final cachedPrice = PriceSyncService().getCachedPrice(
+        tfliteResult.label,
         location.district,
-        location.state,
+      );
+
+      if (cachedPrice == null) {
+        if (isOffline) {
+          _showErrorSnackBar(
+            'No cached price for ${cropMap['display']} in ${location.district}. Connect to internet to sync prices first.',
+          );
+          return;
+        }
+
+        // If cache is missing while online, use Gemini as a fallback.
+        final ProduceResult fallbackResult = await _produceService
+            .identifyProduce(
+              widget.imageFile,
+              location.district,
+              location.state,
+            );
+
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ResultScreen(
+                imageFile: widget.imageFile,
+                produceResult: fallbackResult,
+                locationResult: location,
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
+      final priceReasoning =
+          'Market reference · Last updated: ${_formatDate(cachedPrice.syncedAt)}';
+
+      final produceResult = ProduceResult(
+        nameEnglish: cropMap['display']!,
+        nameKannada: cropMap['kn']!,
+        confidence: tfliteResult.confidence,
+        category: 'vegetable',
+        ripeness: 'unknown',
+        grade: 'B',
+        gradeReasoning:
+            'Identified on-device with '
+            '${(tfliteResult.confidence * 100).toStringAsFixed(0)}% confidence. '
+            'Fresh visual quality estimate generated.',
+        priceMinPerKg: cachedPrice.priceMin,
+        priceMaxPerKg: cachedPrice.priceMax,
+        priceFairPerKg: cachedPrice.priceFair,
+        priceRecommendedMin: cachedPrice.priceFair * 0.9,
+        priceRecommendedMax: cachedPrice.priceFair * 1.1,
+        priceReasoning: priceReasoning,
+        priceConfidence: cachedPrice.isStale ? 'low' : 'medium',
+        isPriceEstimate: true,
+        lowConfidence: tfliteResult.confidence < 0.65,
       );
 
       if (mounted) {

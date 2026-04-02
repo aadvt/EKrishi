@@ -9,21 +9,38 @@ import '../models/location_result.dart';
 
 class PriceSyncService {
   static final List<String> crops = [
-    'tomato', 'onion', 'potato', 'brinjal', 'okra', 'cabbage', 
-    'cauliflower', 'carrot', 'beans', 'green chilli', 'garlic', 'ginger', 
-    'banana', 'mango', 'papaya', 'coconut', 'maize', 'groundnut', 
-    'ragi', 'jowar', 'sapota'
+    'tomato',
+    'onion',
+    'potato',
+    'brinjal',
+    'okra',
+    'cabbage',
+    'cauliflower',
+    'carrot',
+    'beans',
+    'green chilli',
+    'garlic',
+    'ginger',
+    'banana',
+    'mango',
+    'papaya',
+    'coconut',
+    'maize',
+    'groundnut',
+    'ragi',
+    'jowar',
+    'sapota',
   ];
 
   Future<void> syncPrices(LocationResult location) async {
     try {
       final metaBox = Hive.box('price_sync_meta');
       final lastSyncStr = metaBox.get('last_sync');
-      
+
       if (lastSyncStr != null) {
         final lastSync = DateTime.parse(lastSyncStr);
-        if (DateTime.now().difference(lastSync).inHours < 6) {
-          // Already synced in the last 6 hours
+        if (DateTime.now().difference(lastSync).inHours < 24) {
+          // Already synced in the last 24 hours
           return;
         }
       }
@@ -37,7 +54,8 @@ class PriceSyncService {
       final district = location.district;
       final state = location.state;
 
-      final String prompt = '''
+      final String prompt =
+          '''
 You are an agricultural pricing expert for Indian markets.
 
 Provide current wholesale mandi prices for the following crops 
@@ -83,19 +101,23 @@ All prices in Indian Rupees per kg.
 }
 ''';
 
-      final response = await http.post(
-        Uri.parse('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'contents': [
-            {
-              'parts': [
-                {'text': prompt}
-              ]
-            }
-          ]
-        }),
-      ).timeout(const Duration(seconds: 45));
+      final response = await http
+          .post(
+            Uri.parse(
+              'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey',
+            ),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'contents': [
+                {
+                  'parts': [
+                    {'text': prompt},
+                  ],
+                },
+              ],
+            }),
+          )
+          .timeout(const Duration(seconds: 45));
 
       if (response.statusCode != 200) return;
 
@@ -130,7 +152,6 @@ All prices in Indian Rupees per kg.
       // Save sync metadata
       metaBox.put('last_sync', DateTime.now().toIso8601String());
       metaBox.put('last_sync_district', district);
-
     } catch (e) {
       // Catch silently - log to console but DO NOT throw
       debugPrint('Price sync failed: $e');
@@ -142,7 +163,7 @@ All prices in Indian Rupees per kg.
       final key = '${cropName}_$district'.toLowerCase();
       final priceBox = Hive.box('cached_prices');
       final data = priceBox.get(key);
-      
+
       if (data != null) {
         return CachedPrice.fromJson(Map<String, dynamic>.from(data));
       }

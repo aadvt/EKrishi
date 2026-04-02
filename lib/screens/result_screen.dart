@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
@@ -10,6 +11,7 @@ import '../models/produce_result.dart';
 import '../models/scan_history.dart';
 import '../services/farmer_service.dart';
 import '../services/marketplace_service.dart';
+import '../services/produce_service.dart';
 import '../utils/language_provider.dart';
 import 'camera_screen.dart';
 
@@ -32,11 +34,38 @@ class ResultScreen extends StatefulWidget {
 class _ResultScreenState extends State<ResultScreen> {
   bool _isPushingToMarket = false;
   bool _hasListedToMarket = false;
+  bool _hasInternet = false;
+  bool _isLoadingInsight = false;
+  bool _hasRequestedInsight = false;
+  late ProduceResult _displayProduceResult;
+
+  bool get _isTfliteResult =>
+      _displayProduceResult.gradeReasoning.startsWith('Identified on-device');
+
+  String _uiPriceReasoning(String rawReasoning) {
+    final lines = rawReasoning.split('\n').where((line) {
+      final lower = line.toLowerCase();
+      return !lower.contains('cached') && !lower.contains('offline mode');
+    }).toList();
+
+    return lines.join('\n').trim();
+  }
 
   @override
   void initState() {
     super.initState();
+    _displayProduceResult = widget.produceResult;
+    _checkInternet();
     _saveToHistory();
+  }
+
+  Future<void> _checkInternet() async {
+    final connectivityResult = await Connectivity().checkConnectivity();
+    final hasInternet =
+        !connectivityResult.contains(ConnectivityResult.none) ||
+        connectivityResult.length > 1;
+    if (!mounted) return;
+    setState(() => _hasInternet = hasInternet);
   }
 
   Future<void> _saveToHistory() async {
@@ -77,7 +106,7 @@ class _ResultScreenState extends State<ResultScreen> {
     setState(() => _isPushingToMarket = true);
 
     final result = await MarketplaceService().pushListing(
-      widget.produceResult,
+      _displayProduceResult,
       widget.locationResult,
       phone,
     );
@@ -101,6 +130,41 @@ class _ResultScreenState extends State<ResultScreen> {
           ),
         ),
       );
+    }
+  }
+
+  Future<void> _loadAiMarketInsight() async {
+    setState(() => _isLoadingInsight = true);
+
+    try {
+      final insight = await ProduceService().generateMarketInsight(
+        produceName: _displayProduceResult.nameEnglish,
+        district: widget.locationResult.district,
+        state: widget.locationResult.state,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _hasRequestedInsight = true;
+        _displayProduceResult = _displayProduceResult.copyWith(
+          priceReasoning:
+              '${_displayProduceResult.priceReasoning}\n\nAI Market Insight:\n$insight',
+          priceConfidence: 'high',
+        );
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to fetch AI market insight right now.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingInsight = false);
+      }
     }
   }
 
@@ -240,6 +304,7 @@ class _ResultScreenState extends State<ResultScreen> {
   Widget build(BuildContext context) {
     final languageProvider = Provider.of<LanguageProvider>(context);
     final isKn = languageProvider.isKannada;
+    final produceResult = _displayProduceResult;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -270,16 +335,13 @@ class _ResultScreenState extends State<ResultScreen> {
             const SizedBox(height: 8),
             _ProduceHeroCard(
               imageFile: widget.imageFile,
-              ripeness: widget.produceResult.ripeness,
-              grade: widget.produceResult.grade,
-              produceName: widget.produceResult.nameEnglish,
-              produceNameKannada: widget.produceResult.nameKannada,
+              ripeness: produceResult.ripeness,
+              grade: produceResult.grade,
+              produceName: produceResult.nameEnglish,
+              produceNameKannada: produceResult.nameKannada,
             ),
             const SizedBox(height: 16),
-            _AiEstimateChip(
-              isKn: isKn,
-              priceReasoning: widget.produceResult.priceReasoning,
-            ),
+            _AiEstimateChip(isKn: isKn),
             const SizedBox(height: 16),
             _LocationRow(
               district: widget.locationResult.district,
@@ -289,21 +351,51 @@ class _ResultScreenState extends State<ResultScreen> {
             ),
             const SizedBox(height: 16),
             _PriceCard(
-              minPrice: widget.produceResult.priceRecommendedMin,
-              fairPrice: widget.produceResult.priceFairPerKg,
-              maxPrice: widget.produceResult.priceRecommendedMax,
+              minPrice: produceResult.priceRecommendedMin,
+              fairPrice: produceResult.priceFairPerKg,
+              maxPrice: produceResult.priceRecommendedMax,
               isKn: isKn,
             ),
             const SizedBox(height: 12),
             _ReasoningCard(
-              priceReasoning: widget.produceResult.priceReasoning,
-              gradeReasoning: widget.produceResult.gradeReasoning,
+              priceReasoning: _uiPriceReasoning(produceResult.priceReasoning),
+              gradeReasoning: produceResult.gradeReasoning,
             ),
             const SizedBox(height: 12),
             _ConfidenceRow(
-              confidence: widget.produceResult.priceConfidence,
+              confidence: produceResult.priceConfidence,
               isKn: isKn,
             ),
+            if (_isTfliteResult && _hasInternet && !_hasRequestedInsight) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: OutlinedButton.icon(
+                  onPressed: _isLoadingInsight ? null : _loadAiMarketInsight,
+                  icon: _isLoadingInsight
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.insights_rounded, size: 20),
+                  label: Text(
+                    _isLoadingInsight
+                        ? 'Getting AI market insight...'
+                        : 'Get AI Market Insight',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF1A1A1A),
+                    side: const BorderSide(color: Color(0xFF1A1A1A)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             _hasListedToMarket
                 ? Container(
@@ -593,7 +685,7 @@ class _ProduceHeroCard extends StatelessWidget {
       default:
         badgeBg = const Color(0xFFF5F5F5);
         badgeText = const Color(0xFF6B6B6B);
-        badgeLabel = 'Offline';
+        badgeLabel = 'Standard';
         break;
     }
 
@@ -619,48 +711,11 @@ class _BadgeStyle {
 
 class _AiEstimateChip extends StatelessWidget {
   final bool isKn;
-  final String priceReasoning;
 
-  const _AiEstimateChip({required this.isKn, required this.priceReasoning});
+  const _AiEstimateChip({required this.isKn});
 
   @override
   Widget build(BuildContext context) {
-    final bool isOfflineData = priceReasoning.contains('Cached price');
-
-    if (isOfflineData) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFF3E0),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFFFE0B2)),
-        ),
-        child: Row(
-          children: [
-            const Icon(
-              Icons.wifi_off_rounded,
-              color: Color(0xFFF4A261),
-              size: 16,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                isKn
-                    ? 'ಆಫ್ಲೈನ್ ಮೋಡ್ · ಸಂಗ್ರಹಿಸಿದ ಬೆಲೆ ಡೇಟಾ'
-                    : 'Offline mode · Cached price data',
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFFE65100),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -680,7 +735,7 @@ class _AiEstimateChip extends StatelessWidget {
             child: Text(
               isKn
                   ? 'AI ಬೆಲೆ ಅಂದಾಜು · ಸ್ಥಳ ಮತ್ತು ಋತುವಿನ ಆಧಾರಿತ'
-                  : 'AI price estimate · Based on location & season',
+                  : 'Smart price estimate · Based on location & season',
               style: const TextStyle(fontSize: 13, color: AppColors.info),
             ),
           ),

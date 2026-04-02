@@ -82,4 +82,29 @@ class ProduceResult {
       'is_price_estimate': isPriceEstimate,
     };
   }
+
+  ProduceResult copyWith({
+    String? gradeReasoning,
+    String? priceReasoning,
+    String? priceConfidence,
+  }) {
+    return ProduceResult(
+      nameEnglish: nameEnglish,
+      nameKannada: nameKannada,
+      confidence: confidence,
+      category: category,
+      ripeness: ripeness,
+      grade: grade,
+      gradeReasoning: gradeReasoning ?? this.gradeReasoning,
+      lowConfidence: lowConfidence,
+      priceMinPerKg: priceMinPerKg,
+      priceMaxPerKg: priceMaxPerKg,
+      priceFairPerKg: priceFairPerKg,
+      priceRecommendedMin: priceRecommendedMin,
+      priceRecommendedMax: priceRecommendedMax,
+      priceReasoning: priceReasoning ?? this.priceReasoning,
+      priceConfidence: priceConfidence ?? this.priceConfidence,
+      isPriceEstimate: isPriceEstimate,
+    );
+  }
 }

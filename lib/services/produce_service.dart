@@ -7,6 +7,79 @@ import '../models/produce_result.dart';
 import '../utils/exceptions.dart';
 
 class ProduceService {
+  Future<String> generateMarketInsight({
+    required String produceName,
+    required String district,
+    required String state,
+  }) async {
+    final String? apiKey = dotenv.env['GEMINI_API_KEY'];
+    if (apiKey == null || apiKey.isEmpty) {
+      throw NetworkException('API key not found');
+    }
+
+    final String currentMonth = DateFormat('MMMM').format(DateTime.now());
+
+    try {
+      final prompt =
+          '''
+You are an agricultural market advisor for Indian farmers.
+
+Produce: $produceName
+Location: $district, $state, India
+Current month/season: $currentMonth
+
+Give a concise market insight for this produce right now.
+Include:
+1) seasonal demand/supply signal
+2) short selling suggestion (today vs hold 1-2 days)
+3) one practical risk/watch-out
+
+Respond as plain text in 3-4 short lines. No markdown.
+''';
+
+      final response = await http
+          .post(
+            Uri.parse(
+              'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey',
+            ),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'contents': [
+                {
+                  'parts': [
+                    {'text': prompt},
+                  ],
+                },
+              ],
+            }),
+          )
+          .timeout(const Duration(seconds: 25));
+
+      if (response.statusCode != 200) {
+        throw NetworkException('HTTP Status ${response.statusCode}');
+      }
+
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      final String text = data['candidates'][0]['content']['parts'][0]['text']
+          .toString()
+          .replaceAll('```', '')
+          .trim();
+
+      if (text.isEmpty) {
+        throw NetworkException('Empty AI response');
+      }
+
+      return text;
+    } on SocketException {
+      throw NetworkException('No internet connection');
+    } on FormatException {
+      throw NetworkException('Failed to parse AI response');
+    } catch (e) {
+      if (e is NetworkException) rethrow;
+      throw NetworkException(e.toString());
+    }
+  }
+
   Future<ProduceResult> identifyProduce(
     File imageFile,
     String district,
