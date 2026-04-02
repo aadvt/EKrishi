@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../constants/app_colors.dart';
 import '../models/location_result.dart';
+import '../services/farmer_service.dart';
 import '../services/location_service.dart';
 import '../services/price_sync_service.dart';
 import '../utils/language_provider.dart';
@@ -20,6 +21,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final LocationService _locationService = LocationService();
   final TextEditingController _districtController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   String _selectedState = 'Karnataka';
   LocationResult? _currentLocation;
 
@@ -45,12 +47,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
+    _phoneController.text = FarmerService().getPhoneNumber() ?? '';
     _loadCurrentLocation();
   }
 
   @override
   void dispose() {
     _districtController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -94,6 +98,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final lang = Provider.of<LanguageProvider>(context);
     final isKn = lang.isKannada;
+    final farmerService = FarmerService();
+    final hasPhoneNumber = farmerService.hasPhoneNumber;
+    final phoneNumber = farmerService.getPhoneNumber();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -171,6 +178,111 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           const Spacer(),
                           const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
                         ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            _SectionLabel(text: 'FARMER PROFILE'),
+            _CardContainer(
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.phone_rounded, size: 20, color: AppColors.accentGreen),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Your Phone Number',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                hasPhoneNumber && phoneNumber != null
+                                    ? '+91 $phoneNumber'
+                                    : 'Not set - required for marketplace',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: hasPhoneNumber && phoneNumber != null
+                                      ? AppColors.textSecondary
+                                      : const Color(0xFFE63946),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: TextField(
+                      controller: _phoneController,
+                      keyboardType: TextInputType.phone,
+                      maxLength: 10,
+                      decoration: InputDecoration(
+                        labelText: '10-digit mobile number',
+                        prefixText: '+91 ',
+                        counterText: '',
+                        filled: true,
+                        fillColor: const Color(0xFFF5F5F5),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Color(0xFFE8E8E8)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Color(0xFFE8E8E8)),
+                        ),
+                      ),
+                      onChanged: (_) {
+                        setState(() {});
+                      },
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: SizedBox(
+                      height: 48,
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          final phone = _phoneController.text.trim();
+                          if (!RegExp(r'^\d{10}$').hasMatch(phone)) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Please enter a valid 10-digit number')),
+                            );
+                            return;
+                          }
+
+                          await farmerService.savePhoneNumber(phone);
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Phone number saved')),
+                          );
+                          setState(() {});
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: Text(isKn ? 'ಸಂಖ್ಯೆ ಉಳಿಸಿ' : 'Save Number'),
                       ),
                     ),
                   ),

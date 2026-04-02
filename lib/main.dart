@@ -10,14 +10,14 @@ import 'services/tflite_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Load environment variables
   await dotenv.load(fileName: ".env");
-  
+
   // Initialize Hive
   await Hive.initFlutter();
   Hive.registerAdapter(ScanHistoryAdapter());
-  
+
   // Open Hive boxes
   await Hive.openBox('settings');
   await Hive.openBox('location');
@@ -25,15 +25,14 @@ void main() async {
   await Hive.openBox('prices');
   await Hive.openBox('cached_prices');
   await Hive.openBox('price_sync_meta');
+  await Hive.openBox('farmer_profile');
 
   // Load TFLite model once and keep interpreter in memory.
   await TfliteService().loadModel();
-  
+
   runApp(
     MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => LanguageProvider()),
-      ],
+      providers: [ChangeNotifierProvider(create: (_) => LanguageProvider())],
       child: const EKrishiApp(),
     ),
   );
