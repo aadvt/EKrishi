@@ -8,6 +8,8 @@ import '../constants/app_colors.dart';
 import '../models/location_result.dart';
 import '../models/produce_result.dart';
 import '../models/scan_history.dart';
+import '../services/farmer_service.dart';
+import '../services/marketplace_service.dart';
 import '../utils/language_provider.dart';
 import 'camera_screen.dart';
 
@@ -28,6 +30,9 @@ class ResultScreen extends StatefulWidget {
 }
 
 class _ResultScreenState extends State<ResultScreen> {
+  bool _isPushingToMarket = false;
+  bool _hasListedToMarket = false;
+
   @override
   void initState() {
     super.initState();
@@ -52,6 +57,176 @@ class _ResultScreenState extends State<ResultScreen> {
     } catch (e) {
       debugPrint('Failed to save history: $e');
     }
+  }
+
+  Future<void> _pushToMarketplace() async {
+    final hasPhone = FarmerService().hasPhoneNumber;
+
+    if (!hasPhone) {
+      await _showPhoneNumberSheet();
+      if (!FarmerService().hasPhoneNumber) {
+        return;
+      }
+    }
+
+    final phone = FarmerService().getPhoneNumber()!;
+
+    setState(() => _isPushingToMarket = true);
+
+    final result = await MarketplaceService().pushListing(
+      widget.produceResult,
+      widget.locationResult,
+      phone,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() => _isPushingToMarket = false);
+
+    if (result.success) {
+      setState(() => _hasListedToMarket = true);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.error ?? 'Failed to list. Please try again.'),
+          backgroundColor: const Color(0xFFE63946),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _showPhoneNumberSheet() async {
+    final controller = TextEditingController();
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 16,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 32,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8E8E8),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Icon(
+              Icons.storefront_rounded,
+              size: 32,
+              color: Color(0xFF2D6A4F),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Enter your phone number',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1A1A1A),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Buyers will contact you on this number. You only need to enter this once.',
+              style: TextStyle(
+                fontSize: 14,
+                color: Color(0xFF6B6B6B),
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 24),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.phone,
+              maxLength: 10,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: 'Mobile number',
+                prefixText: '+91 ',
+                counterText: '',
+                filled: true,
+                fillColor: const Color(0xFFF5F5F5),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFFE8E8E8)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFFE8E8E8)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF2D6A4F),
+                    width: 2,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1A1A1A),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 0,
+                ),
+                onPressed: () async {
+                  final phone = controller.text.trim();
+                  if (phone.length != 10 || int.tryParse(phone) == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please enter a valid 10-digit number'),
+                        backgroundColor: Color(0xFF1A1A1A),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                    return;
+                  }
+                  await FarmerService().savePhoneNumber(phone);
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                  }
+                },
+                child: const Text(
+                  'Save & Continue',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    controller.dispose();
   }
 
   @override
@@ -122,7 +297,100 @@ class _ResultScreenState extends State<ResultScreen> {
               confidence: widget.produceResult.priceConfidence,
               isKn: isKn,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+            _hasListedToMarket
+                ? Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD8F3DC),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFF52B788)),
+                    ),
+                    child: const Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.check_circle_rounded,
+                          color: Color(0xFF2D6A4F),
+                          size: 20,
+                        ),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Listed to marketplace!',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF2D6A4F),
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Buyers in your area can now see this listing',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Color(0xFF52B788),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2D6A4F),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      onPressed:
+                          _isPushingToMarket ? null : _pushToMarketplace,
+                      child: _isPushingToMarket
+                          ? const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                                SizedBox(width: 10),
+                                Text('Listing...'),
+                              ],
+                            )
+                          : const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.storefront_rounded, size: 20),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Push to Marketplace',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
+            const SizedBox(height: 12),
             ElevatedButton.icon(
               onPressed: () {
                 Navigator.pushAndRemoveUntil(
@@ -372,7 +640,9 @@ class _AiEstimateChip extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                isKn ? 'ಆಫ್ಲೈನ್ ಮೋಡ್ · ಸಂಗ್ರಹಿಸಿದ ಬೆಲೆ ಡೇಟಾ' : 'Offline mode · Cached price data',
+                isKn
+                    ? 'ಆಫ್ಲೈನ್ ಮೋಡ್ · ಸಂಗ್ರಹಿಸಿದ ಬೆಲೆ ಡೇಟಾ'
+                    : 'Offline mode · Cached price data',
                 style: const TextStyle(
                   fontSize: 13,
                   color: Color(0xFFE65100),
