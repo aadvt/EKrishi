@@ -1,69 +1,46 @@
-# EKrishi FastAPI Backend
+# eKrishi Backend (Node.js + Express)
 
-This backend sits between the Flutter app and Neon PostgreSQL.
+This backend is a plain JavaScript Express API designed for deployment on Vercel (free tier), using PostgreSQL via `pg`.
 
-## Setup
-
-1. Create a Python virtual environment.
-2. Install dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-3. Copy `.env.example` to `.env` and set `DATABASE_URL`.
-
-## Run locally
-
-### Option 1: using script
-
-```bash
-bash run_local.sh
-```
-
-### Option 2: manual run
+## 1. Local development
 
 ```bash
 cd backend
-pip install -r requirements.txt
-uvicorn main:app --reload
+cp .env.example .env
+# fill in DATABASE_URL in .env
+npm install
+node --env-file=.env api/index.js
+# or: npx nodemon api/index.js
 ```
 
-Backend runs at `http://localhost:8000`.
+The API will run on port `3000` by default.
 
-## Test with curl
+## 2. Test with curl
 
 ```bash
-curl -X POST http://localhost:8000/farmers/upsert \
-	-H "Content-Type: application/json" \
-	-d '{"phone_number":"9876543210","full_name":"Test Farmer","district":"Tumkur"}'
+# Health
+curl http://localhost:3000/health
+
+# Register farmer
+curl -X POST http://localhost:3000/farmers/upsert \
+  -H "Content-Type: application/json" \
+  -d '{"phone_number":"9876543210","full_name":"Test Farmer","district":"Tumkur"}'
+
+# Push listing
+curl -X POST http://localhost:3000/listings \
+  -H "Content-Type: application/json" \
+  -d '{"farmer_phone":"9876543210","produce_name":"Tomato","produce_name_local":"ಟೊಮೇಟೊ","quantity_kg":50,"price_per_kg":25.0,"grade":"A","location_district":"Tumkur"}'
 ```
 
-```bash
-curl -X POST http://localhost:8000/listings \
-	-H "Content-Type: application/json" \
-	-d '{"farmer_phone":"9876543210","produce_name":"Tomato","produce_name_local":"ಟೊಮೇಟೊ","quantity_kg":50,"price_per_kg":25.0,"grade":"A","location_district":"Tumkur"}'
-```
+## 3. Deploy to Vercel
 
-## Deploy to Render (free tier)
+- Install Vercel CLI: `npm i -g vercel`
+- `cd backend && vercel`
+- Add `DATABASE_URL` in Vercel dashboard -> Project Settings -> Environment Variables
+- Every git push to `main` auto-deploys
 
-1. Connect your GitHub repository in Render.
-2. Set Root Directory to `backend/`.
-3. Build Command: `pip install -r requirements.txt`
-4. Start Command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
-5. Add `DATABASE_URL` in Render environment variables.
+## 4. Flutter .env update
 
-## Endpoints
-
-- `GET /health`
-- `POST /farmers/upsert`
-- `GET /farmers/{phone_number}`
-- `POST /listings`
-- `GET /listings/{listing_id}`
-
-## Notes
-
-- Uses async SQLAlchemy sessions (`asyncpg` driver).
-- Uses SQLAlchemy Core text queries only.
-- Does not create/alter tables.
-- CORS allows all origins for mobile consumption.
+- For Android emulator: `NEON_API_URL=http://10.0.2.2:3000`
+- For physical device: `NEON_API_URL=http://<your-local-ip>:3000`
+- For production: `NEON_API_URL=https://your-app.vercel.app`
