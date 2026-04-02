@@ -7,6 +7,7 @@ class FarmerService {
 
   static const String _boxName = 'farmer_profile';
   static const String _phoneKey = 'phone_number';
+  static const String _fullNameKey = 'full_name';
 
   // Returns null if farmer has never entered their number.
   String? getPhoneNumber() {
@@ -17,6 +18,16 @@ class FarmerService {
   Future<void> savePhoneNumber(String phone) async {
     final box = Hive.box(_boxName);
     await box.put(_phoneKey, phone);
+  }
+
+  String? getFullName() {
+    final box = Hive.box(_boxName);
+    return box.get(_fullNameKey) as String?;
+  }
+
+  Future<void> saveFullName(String name) async {
+    final box = Hive.box(_boxName);
+    await box.put(_fullNameKey, name);
   }
 
   Future<void> clearPhoneNumber() async {

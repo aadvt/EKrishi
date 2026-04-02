@@ -356,8 +356,7 @@ class _ResultScreenState extends State<ResultScreen> {
                           borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      onPressed:
-                          _isPushingToMarket ? null : _pushToMarketplace,
+                      onPressed: _isPushingToMarket ? null : _pushToMarketplace,
                       child: _isPushingToMarket
                           ? const Row(
                               mainAxisAlignment: MainAxisAlignment.center,

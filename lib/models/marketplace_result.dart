@@ -3,9 +3,5 @@ class MarketplaceResult {
   final String? listingId;
   final String? error;
 
-  const MarketplaceResult({
-    required this.success,
-    this.listingId,
-    this.error,
-  });
+  const MarketplaceResult({required this.success, this.listingId, this.error});
 }

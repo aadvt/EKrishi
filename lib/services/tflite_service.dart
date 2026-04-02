@@ -117,7 +117,7 @@ class TfliteService {
           ? inputBuffer.reshape([1, 3, 224, 224])
           : inputBuffer.reshape([1, 224, 224, 3]);
       final outputShape = _interpreter!.getOutputTensor(0).shape;
-        // ignore: avoid_print
+      // ignore: avoid_print
       print('TFLite output shape: $outputShape');
       final output = List.filled(
         outputShape[1],

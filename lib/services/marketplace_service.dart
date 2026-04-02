@@ -4,12 +4,11 @@ import 'dart:io';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
-import 'package:uuid/uuid.dart';
 
 import '../models/location_result.dart';
-import '../models/marketplace_listing.dart';
 import '../models/marketplace_result.dart';
 import '../models/produce_result.dart';
+import 'farmer_service.dart';
 
 class MarketplaceService {
   static final MarketplaceService _instance = MarketplaceService._internal();
@@ -23,28 +22,7 @@ class MarketplaceService {
     LocationResult locationResult,
     String farmerPhone,
   ) async {
-    final bool isCachedSource =
-        produceResult.priceReasoning.contains('Cached');
-
-    final MarketplaceListing listing = MarketplaceListing(
-      id: const Uuid().v4(),
-      farmerPhone: farmerPhone,
-      cropNameEnglish: produceResult.nameEnglish,
-      cropNameKannada: produceResult.nameKannada,
-      priceFairPerKg: produceResult.priceFairPerKg,
-      priceMinPerKg: produceResult.priceMinPerKg,
-      priceMaxPerKg: produceResult.priceMaxPerKg,
-      grade: produceResult.grade,
-      ripeness: produceResult.ripeness,
-      district: locationResult.district,
-      state: locationResult.state,
-      priceSource: isCachedSource ? 'cached' : 'gemini',
-      listedAt: DateTime.now(),
-      isOfflineListing: isCachedSource,
-    );
-
     final String? neonApiUrl = dotenv.env['NEON_API_URL'];
-    final String neonApiKey = dotenv.env['NEON_API_KEY'] ?? '';
 
     if (neonApiUrl == null || neonApiUrl.isEmpty) {
       return const MarketplaceResult(
@@ -54,24 +32,74 @@ class MarketplaceService {
     }
 
     try {
-      final response = await http
+      final farmerFullName = FarmerService().getFullName() ?? farmerPhone;
+
+      final upsertFarmerResponse = await http
           .post(
-            Uri.parse('$neonApiUrl/listings'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $neonApiKey',
-            },
-            body: jsonEncode(listing.toJson()),
+            Uri.parse('$neonApiUrl/farmers/upsert'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'phone_number': farmerPhone,
+              'full_name': farmerFullName,
+              'district': locationResult.district,
+              'taluk': locationResult.city,
+              'latitude': locationResult.latitude,
+              'longitude': locationResult.longitude,
+            }),
           )
           .timeout(const Duration(seconds: 10));
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return MarketplaceResult(success: true, listingId: listing.id);
+      if (upsertFarmerResponse.statusCode != 200 &&
+          upsertFarmerResponse.statusCode != 201) {
+        return MarketplaceResult(
+          success: false,
+          error:
+              _extractBackendError(upsertFarmerResponse.body) ??
+              'Server error: ${upsertFarmerResponse.statusCode}',
+        );
+      }
+
+      final listingResponse = await http
+          .post(
+            Uri.parse('$neonApiUrl/listings'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'farmer_phone': farmerPhone,
+              'produce_name': produceResult.nameEnglish,
+              'produce_name_local': produceResult.nameKannada,
+              'quantity_kg': 1.0,
+              'price_per_kg': produceResult.priceFairPerKg,
+              'price_min_per_kg': produceResult.priceMinPerKg,
+              'price_max_per_kg': produceResult.priceMaxPerKg,
+              'grade': produceResult.grade,
+              'location_district': locationResult.district,
+              'location_taluk': locationResult.city,
+              'latitude': locationResult.latitude,
+              'longitude': locationResult.longitude,
+              'source_channel': 'mobile_app',
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (listingResponse.statusCode == 200 ||
+          listingResponse.statusCode == 201) {
+        final body = jsonDecode(listingResponse.body) as Map<String, dynamic>;
+        final listingId = body['listing_id']?.toString();
+        if (listingId == null || listingId.isEmpty) {
+          return const MarketplaceResult(
+            success: false,
+            error: 'Invalid listing response from server',
+          );
+        }
+
+        return MarketplaceResult(success: true, listingId: listingId);
       }
 
       return MarketplaceResult(
         success: false,
-        error: 'Server error: ${response.statusCode}',
+        error:
+            _extractBackendError(listingResponse.body) ??
+            'Server error: ${listingResponse.statusCode}',
       );
     } on TimeoutException {
       return const MarketplaceResult(
@@ -94,5 +122,24 @@ class MarketplaceService {
         error: 'No internet connection',
       );
     }
+  }
+
+  String? _extractBackendError(String responseBody) {
+    try {
+      final decoded = jsonDecode(responseBody);
+      if (decoded is Map<String, dynamic>) {
+        final detail = decoded['detail'];
+        if (detail is String && detail.isNotEmpty) {
+          return detail;
+        }
+        final message = decoded['message'];
+        if (message is String && message.isNotEmpty) {
+          return message;
+        }
+      }
+    } catch (_) {
+      return null;
+    }
+    return null;
   }
 }

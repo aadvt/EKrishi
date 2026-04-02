@@ -265,10 +265,7 @@ class _PreviewScreenState extends State<PreviewScreen>
 
     final found = crops[label.toLowerCase()];
     if (found != null) {
-      return {
-        'display': found['display']!,
-        'kn': found['kn']!,
-      };
+      return {'display': found['display']!, 'kn': found['kn']!};
     }
 
     if (label.isEmpty) {
