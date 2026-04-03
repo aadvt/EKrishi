@@ -97,7 +97,7 @@ async function insertSmsTransaction(client, payload) {
       quantityKg,
       pricePerKg,
       pricePerKg,
-      'sms_detected',
+      'local_trader',
       district,
       'upi',
       'released',
