@@ -7,7 +7,7 @@ This backend is a plain JavaScript Express API designed for deployment on Vercel
 ```bash
 cd backend
 cp .env.example .env
-# fill in DATABASE_URL in .env
+# fill in DATABASE_URL (or NEON_DATABASE_URL) in .env
 npm install
 node --env-file=.env api/index.js
 # or: npx nodemon api/index.js
@@ -37,6 +37,7 @@ curl -X POST http://localhost:3000/listings \
 - Install Vercel CLI: `npm i -g vercel`
 - `cd backend && vercel`
 - Add `DATABASE_URL` in Vercel dashboard -> Project Settings -> Environment Variables
+- Optionally also set `NEON_DATABASE_URL` (the backend accepts either variable)
 - Every git push to `main` auto-deploys
 
 ## 4. Flutter .env update
