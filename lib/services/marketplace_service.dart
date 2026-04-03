@@ -33,7 +33,13 @@ class MarketplaceService {
     }
 
     try {
-      final farmerFullName = FarmerService().getFullName() ?? farmerPhone;
+      final farmerFullName = FarmerService().getFullName()?.trim();
+      if (farmerFullName == null || farmerFullName.isEmpty) {
+        return const MarketplaceResult(
+          success: false,
+          error: 'Please set your name before listing',
+        );
+      }
 
       final upsertFarmerResponse = await http
           .post(

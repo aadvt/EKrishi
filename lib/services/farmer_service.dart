@@ -27,7 +27,7 @@ class FarmerService {
 
   Future<void> saveFullName(String name) async {
     final box = Hive.box(_boxName);
-    await box.put(_fullNameKey, name);
+    await box.put(_fullNameKey, name.trim());
   }
 
   Future<void> clearPhoneNumber() async {
@@ -35,5 +35,15 @@ class FarmerService {
     await box.delete(_phoneKey);
   }
 
+  Future<void> clearFullName() async {
+    final box = Hive.box(_boxName);
+    await box.delete(_fullNameKey);
+  }
+
   bool get hasPhoneNumber => getPhoneNumber() != null;
+
+  bool get hasFullName {
+    final name = getFullName();
+    return name != null && name.trim().isNotEmpty;
+  }
 }

@@ -22,6 +22,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final LocationService _locationService = LocationService();
   final TextEditingController _districtController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
   String _selectedState = 'Karnataka';
   LocationResult? _currentLocation;
 
@@ -48,6 +49,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     _phoneController.text = FarmerService().getPhoneNumber() ?? '';
+    _nameController.text = FarmerService().getFullName() ?? '';
     _loadCurrentLocation();
   }
 
@@ -55,6 +57,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void dispose() {
     _districtController.dispose();
     _phoneController.dispose();
+    _nameController.dispose();
     super.dispose();
   }
 
@@ -106,6 +109,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final farmerService = FarmerService();
     final hasPhoneNumber = farmerService.hasPhoneNumber;
     final phoneNumber = farmerService.getPhoneNumber();
+    final hasFullName = farmerService.hasFullName;
+    final fullName = farmerService.getFullName();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -233,6 +238,76 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Icon(
+                          Icons.person_rounded,
+                          size: 20,
+                          color: AppColors.accentGreen,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Your Name',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                hasFullName && fullName != null
+                                    ? fullName
+                                    : 'Not set - required for marketplace',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: hasFullName && fullName != null
+                                      ? AppColors.textSecondary
+                                      : const Color(0xFFE63946),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: TextField(
+                      controller: _nameController,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: InputDecoration(
+                        labelText: 'Full name',
+                        filled: true,
+                        fillColor: const Color(0xFFF5F5F5),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE8E8E8),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE8E8E8),
+                          ),
+                        ),
+                      ),
+                      onChanged: (_) {
+                        setState(() {});
+                      },
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
                           Icons.phone_rounded,
                           size: 20,
                           color: AppColors.accentGreen,
@@ -309,7 +384,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           width: double.infinity,
                           child: ElevatedButton(
                             onPressed: () async {
+                              final fullNameInput = _nameController.text.trim();
                               final phone = _phoneController.text.trim();
+                              if (fullNameInput.length < 2) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Please enter your name'),
+                                  ),
+                                );
+                                return;
+                              }
                               if (!RegExp(r'^\d{10}$').hasMatch(phone)) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
@@ -321,12 +405,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 return;
                               }
 
+                              await farmerService.saveFullName(fullNameInput);
                               await farmerService.savePhoneNumber(phone);
                               if (!context.mounted) return;
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Phone number saved'),
-                                ),
+                                const SnackBar(content: Text('Profile saved')),
                               );
                               setState(() {});
                             },
@@ -337,22 +420,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                            child: Text(isKn ? 'ಸಂಖ್ಯೆ ಉಳಿಸಿ' : 'Save Number'),
+                            child: Text(
+                              isKn ? 'ಪ್ರೊಫೈಲ್ ಉಳಿಸಿ' : 'Save Profile',
+                            ),
                           ),
                         ),
-                        if (hasPhoneNumber ||
+                        if (hasFullName ||
+                            hasPhoneNumber ||
+                            _nameController.text.isNotEmpty ||
                             _phoneController.text.isNotEmpty) ...[
                           const SizedBox(height: 10),
                           TextButton(
                             onPressed: () async {
                               await farmerService.clearPhoneNumber();
+                              await farmerService.clearFullName();
+                              _nameController.clear();
                               _phoneController.clear();
                               if (!context.mounted) {
                                 return;
                               }
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Phone number cleared'),
+                                  content: Text('Profile cleared'),
                                 ),
                               );
                               setState(() {});
@@ -361,7 +450,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               foregroundColor: AppColors.textSecondary,
                             ),
                             child: Text(
-                              isKn ? 'ಸಂಖ್ಯೆ ತೆರವುಗೊಳಿಸಿ' : 'Clear Number',
+                              isKn ? 'ಪ್ರೊಫೈಲ್ ತೆರವುಗೊಳಿಸಿ' : 'Clear Profile',
                             ),
                           ),
                         ],

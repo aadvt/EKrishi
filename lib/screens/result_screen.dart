@@ -97,32 +97,42 @@ class _ResultScreenState extends State<ResultScreen> {
   }
 
   Future<void> _pushToMarketplace() async {
-    final hasPhone = FarmerService().hasPhoneNumber;
-
-    if (!hasPhone) {
-      final didSavePhone = await _showPhoneNumberSheet();
-      if (!mounted) {
-        return;
-      }
-      if (!didSavePhone || !FarmerService().hasPhoneNumber) {
-        return;
-      }
-
-      // Allow route and keyboard teardown to settle before opening kg dialog.
-      await Future<void>.delayed(const Duration(milliseconds: 120));
-      if (!mounted) {
-        return;
-      }
-    }
-
-    final phone = FarmerService().getPhoneNumber()!;
-    final quantityKg = await _showQuantitySheet();
-
-    if (quantityKg == null || !mounted) {
+    if (_isPushingToMarket) {
       return;
     }
 
     setState(() => _isPushingToMarket = true);
+
+    final profileReady = await _ensureProfileForMarketplace();
+    if (!mounted || !profileReady) {
+      if (mounted) {
+        setState(() => _isPushingToMarket = false);
+      }
+      return;
+    }
+
+    final phone = FarmerService().getPhoneNumber();
+    if (phone == null || phone.isEmpty) {
+      if (mounted) {
+        setState(() => _isPushingToMarket = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please set your phone number before listing'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
+    final quantityKg = await _showQuantitySheet();
+
+    if (quantityKg == null || !mounted) {
+      if (mounted) {
+        setState(() => _isPushingToMarket = false);
+      }
+      return;
+    }
 
     final result = await MarketplaceService().pushListing(
       _displayProduceResult,
@@ -234,222 +244,47 @@ class _ResultScreenState extends State<ResultScreen> {
     });
   }
 
-  Future<bool> _showPhoneNumberSheet() async {
-    final controller = TextEditingController();
-    final parentContext = context;
+  Future<bool> _ensureProfileForMarketplace() async {
+    final farmerService = FarmerService();
+    final hasPhone = farmerService.hasPhoneNumber;
+    final hasName = farmerService.hasFullName;
 
-    final didSave = await showModalBottomSheet<bool>(
-      context: parentContext,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (sheetContext) => Padding(
-        padding: EdgeInsets.only(
-          left: 24,
-          right: 24,
-          top: 16,
-          bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 32,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE8E8E8),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Icon(
-              Icons.storefront_rounded,
-              size: 32,
-              color: Color(0xFF2D6A4F),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Enter your phone number',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF1A1A1A),
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Buyers will contact you on this number. You only need to enter this once.',
-              style: TextStyle(
-                fontSize: 14,
-                color: Color(0xFF6B6B6B),
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 24),
-            TextField(
-              controller: controller,
-              keyboardType: TextInputType.phone,
-              maxLength: 10,
-              autofocus: true,
-              decoration: InputDecoration(
-                labelText: 'Mobile number',
-                prefixText: '+91 ',
-                counterText: '',
-                filled: true,
-                fillColor: const Color(0xFFF5F5F5),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE8E8E8)),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE8E8E8)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF2D6A4F),
-                    width: 2,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1A1A1A),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  elevation: 0,
-                ),
-                onPressed: () async {
-                  final phone = controller.text.trim();
-                  if (phone.length != 10 || int.tryParse(phone) == null) {
-                    if (!mounted) {
-                      return;
-                    }
-                    ScaffoldMessenger.of(parentContext).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please enter a valid 10-digit number'),
-                        backgroundColor: Color(0xFF1A1A1A),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                    return;
-                  }
-                  await FarmerService().savePhoneNumber(phone);
+    if (hasPhone && hasName) {
+      return true;
+    }
 
-                  FocusManager.instance.primaryFocus?.unfocus();
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (!sheetContext.mounted) {
-                      return;
-                    }
-                    Navigator.of(sheetContext).pop(true);
-                  });
-                },
-                child: const Text(
-                  'Save & Continue',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ),
-          ],
-        ),
+    return _showProfileSheet(
+      initialPhone: farmerService.getPhoneNumber() ?? '',
+      initialName: farmerService.getFullName() ?? '',
+      requirePhone: !hasPhone,
+      requireName: !hasName,
+    );
+  }
+
+  Future<bool> _showProfileSheet({
+    required String initialPhone,
+    required String initialName,
+    required bool requirePhone,
+    required bool requireName,
+  }) async {
+    final didSave = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _MarketplaceProfileDialog(
+        initialPhone: initialPhone,
+        initialName: initialName,
+        requirePhone: requirePhone,
+        requireName: requireName,
       ),
     );
-
-    controller.dispose();
     return didSave ?? false;
   }
 
   Future<double?> _showQuantitySheet() async {
-    final controller = TextEditingController();
-    String? errorText;
-
     final quantityKg = await showDialog<double>(
       context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (statefulContext, setDialogState) {
-            var isClosing = false;
-
-            void submit() {
-              final raw = controller.text.trim().replaceAll(',', '.');
-              final parsed = double.tryParse(raw);
-
-              if (parsed == null || parsed <= 0) {
-                setDialogState(() {
-                  errorText = 'Please enter a valid quantity in kg';
-                });
-                return;
-              }
-
-              if (isClosing) {
-                return;
-              }
-              isClosing = true;
-
-              FocusManager.instance.primaryFocus?.unfocus();
-
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (!dialogContext.mounted) {
-                  return;
-                }
-                Navigator.of(dialogContext).pop(parsed);
-              });
-            }
-
-            return AlertDialog(
-              title: const Text('Enter quantity to list'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('How many kilograms are you selling?'),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: controller,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    textInputAction: TextInputAction.done,
-                    autofocus: true,
-                    onSubmitted: (_) => submit(),
-                    decoration: InputDecoration(
-                      labelText: 'Quantity in kg',
-                      suffixText: 'kg',
-                      errorText: errorText,
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: submit,
-                  child: const Text('Continue'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      builder: (_) => const _QuantityInputDialog(),
     );
-
-    controller.dispose();
     return quantityKg;
   }
 
@@ -677,6 +512,277 @@ class _ResultScreenState extends State<ResultScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _MarketplaceProfileDialog extends StatefulWidget {
+  final String initialPhone;
+  final String initialName;
+  final bool requirePhone;
+  final bool requireName;
+
+  const _MarketplaceProfileDialog({
+    required this.initialPhone,
+    required this.initialName,
+    required this.requirePhone,
+    required this.requireName,
+  });
+
+  @override
+  State<_MarketplaceProfileDialog> createState() =>
+      _MarketplaceProfileDialogState();
+}
+
+class _MarketplaceProfileDialogState extends State<_MarketplaceProfileDialog> {
+  late final TextEditingController _phoneController;
+  late final TextEditingController _nameController;
+  late final FocusNode _nameFocusNode;
+
+  String? _phoneError;
+  String? _nameError;
+  bool _saving = false;
+  bool _isClosing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _phoneController = TextEditingController(text: widget.initialPhone);
+    _nameController = TextEditingController(text: widget.initialName);
+    _nameFocusNode = FocusNode();
+  }
+
+  @override
+  void dispose() {
+    _phoneController.dispose();
+    _nameController.dispose();
+    _nameFocusNode.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitProfile() async {
+    if (_saving || _isClosing) {
+      return;
+    }
+
+    final phone = _phoneController.text.trim();
+    final name = _nameController.text.trim();
+
+    String? nextPhoneError;
+    String? nextNameError;
+
+    if (widget.requirePhone && !RegExp(r'^\d{10}$').hasMatch(phone)) {
+      nextPhoneError = 'Please enter a valid 10-digit number';
+    }
+    if (widget.requireName && name.length < 2) {
+      nextNameError = 'Please enter your name';
+    }
+
+    if (nextPhoneError != null || nextNameError != null) {
+      setState(() {
+        _phoneError = nextPhoneError;
+        _nameError = nextNameError;
+      });
+      return;
+    }
+
+    setState(() {
+      _saving = true;
+      _phoneError = null;
+      _nameError = null;
+    });
+
+    if (widget.requirePhone) {
+      await FarmerService().savePhoneNumber(phone);
+    }
+    if (widget.requireName) {
+      await FarmerService().saveFullName(name);
+    }
+
+    if (!mounted || _isClosing) {
+      return;
+    }
+    _isClosing = true;
+    FocusScope.of(context).unfocus();
+    Navigator.of(context).pop(true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Complete marketplace profile'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Enter your details once. They will be reused for future listings.',
+            ),
+            const SizedBox(height: 16),
+            if (widget.requirePhone) ...[
+              TextField(
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                textInputAction: widget.requireName
+                    ? TextInputAction.next
+                    : TextInputAction.done,
+                maxLength: 10,
+                autofocus: true,
+                onChanged: (_) {
+                  if (_phoneError != null) {
+                    setState(() => _phoneError = null);
+                  }
+                },
+                onSubmitted: (_) {
+                  if (widget.requireName) {
+                    FocusScope.of(context).requestFocus(_nameFocusNode);
+                    return;
+                  }
+                  FocusScope.of(context).unfocus();
+                  _submitProfile();
+                },
+                decoration: InputDecoration(
+                  labelText: 'Mobile number',
+                  prefixText: '+91 ',
+                  counterText: '',
+                  errorText: _phoneError,
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            if (widget.requireName)
+              TextField(
+                controller: _nameController,
+                focusNode: _nameFocusNode,
+                textCapitalization: TextCapitalization.words,
+                textInputAction: TextInputAction.done,
+                autofocus: !widget.requirePhone,
+                onChanged: (_) {
+                  if (_nameError != null) {
+                    setState(() => _nameError = null);
+                  }
+                },
+                onSubmitted: (_) {
+                  FocusScope.of(context).unfocus();
+                  _submitProfile();
+                },
+                decoration: InputDecoration(
+                  labelText: 'Full name',
+                  errorText: _nameError,
+                ),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving
+              ? null
+              : () {
+                  if (_isClosing) {
+                    return;
+                  }
+                  _isClosing = true;
+                  Navigator.of(context).pop(false);
+                },
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _saving ? null : _submitProfile,
+          child: Text(_saving ? 'Saving...' : 'Save & Continue'),
+        ),
+      ],
+    );
+  }
+}
+
+class _QuantityInputDialog extends StatefulWidget {
+  const _QuantityInputDialog();
+
+  @override
+  State<_QuantityInputDialog> createState() => _QuantityInputDialogState();
+}
+
+class _QuantityInputDialogState extends State<_QuantityInputDialog> {
+  late final TextEditingController _controller;
+  String? _errorText;
+  bool _isClosing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (_isClosing) {
+      return;
+    }
+
+    final raw = _controller.text.trim().replaceAll(',', '.');
+    final parsed = double.tryParse(raw);
+
+    if (parsed == null || parsed <= 0) {
+      setState(() {
+        _errorText = 'Please enter a valid quantity in kg';
+      });
+      return;
+    }
+
+    _isClosing = true;
+    FocusScope.of(context).unfocus();
+    Navigator.of(context).pop(parsed);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Enter quantity to list'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('How many kilograms are you selling?'),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _controller,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            textInputAction: TextInputAction.done,
+            autofocus: true,
+            onChanged: (_) {
+              if (_errorText != null) {
+                setState(() => _errorText = null);
+              }
+            },
+            onSubmitted: (_) => _submit(),
+            decoration: InputDecoration(
+              labelText: 'Quantity in kg',
+              suffixText: 'kg',
+              errorText: _errorText,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            if (_isClosing) {
+              return;
+            }
+            _isClosing = true;
+            Navigator.of(context).pop();
+          },
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(onPressed: _submit, child: const Text('Continue')),
+      ],
     );
   }
 }
