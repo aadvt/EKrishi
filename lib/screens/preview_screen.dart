@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:hive/hive.dart';
 import '../utils/language_provider.dart';
 import '../constants/app_colors.dart';
 import '../services/produce_service.dart';
@@ -50,12 +51,61 @@ class _PreviewScreenState extends State<PreviewScreen>
     final bool isOffline =
         connectivityResult.contains(ConnectivityResult.none) &&
         connectivityResult.length == 1;
+    final bool aiModeEnabled =
+        Hive.box('settings').get('ai_mode_enabled', defaultValue: false) ==
+        true;
     setState(() => _isAnalyzing = true);
 
     try {
       // 1. Get current location for cached pricing context.
       final LocationResult location = await _locationService
           .getCurrentLocation();
+
+      if (aiModeEnabled) {
+        if (isOffline) {
+          _showErrorSnackBar(
+            'AI mode requires internet. Connect to internet or disable AI mode in Settings.',
+          );
+          return;
+        }
+
+        final ProduceResult aiBaseResult = await _produceService
+            .identifyProduce(
+              widget.imageFile,
+              location.district,
+              location.state,
+              detailed: true,
+            );
+
+        final String detailedInsight = await _produceService
+            .generateMarketInsight(
+              produceName: aiBaseResult.nameEnglish,
+              produceNameKannada: aiBaseResult.nameKannada,
+              district: location.district,
+              state: location.state,
+              detailed: true,
+            );
+
+        final ProduceResult aiResult = aiBaseResult.copyWith(
+          priceReasoning:
+              '${aiBaseResult.priceReasoning}\n\nAI Market Insight:\n$detailedInsight',
+          priceConfidence: 'high',
+        );
+
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ResultScreen(
+                imageFile: widget.imageFile,
+                produceResult: aiResult,
+                locationResult: location,
+              ),
+            ),
+          );
+        }
+        return;
+      }
 
       // 2. Default identification path is always on-device TFLite.
       final tfliteResult = await TfliteService().classifyImage(
@@ -75,6 +125,7 @@ class _PreviewScreenState extends State<PreviewScreen>
               widget.imageFile,
               location.district,
               location.state,
+              detailed: false,
             );
 
         if (mounted) {
@@ -112,6 +163,7 @@ class _PreviewScreenState extends State<PreviewScreen>
               widget.imageFile,
               location.district,
               location.state,
+              detailed: false,
             );
 
         if (mounted) {

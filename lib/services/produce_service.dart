@@ -1,8 +1,10 @@
-import 'dart:io';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'dart:io';
+
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+
 import '../models/produce_result.dart';
 import '../utils/exceptions.dart';
 
@@ -12,6 +14,7 @@ class ProduceService {
     String? produceNameKannada,
     required String district,
     required String state,
+    bool detailed = false,
   }) async {
     final String? apiKey = dotenv.env['GEMINI_API_KEY'];
     if (apiKey == null || apiKey.isEmpty) {
@@ -22,8 +25,40 @@ class ProduceService {
 
     try {
       final kannadaName = (produceNameKannada ?? '').trim();
-      final prompt =
-          '''
+      final prompt = detailed
+          ? '''
+You are an expert agri-market advisor for Indian farmers.
+
+Produce: $produceName
+Produce name in Kannada: ${kannadaName.isEmpty ? 'not provided' : kannadaName}
+Location: $district, $state, India
+Current month/season: $currentMonth
+
+Give a detailed market insight in BOTH English and Kannada.
+
+For each language, provide 5 concise bullet points covering:
+1) market demand and supply trend now
+2) likely quality/grade impact on price
+3) practical sell-now vs hold guidance (1-3 days)
+4) key risk/watch-out (weather, arrivals, spoilage, transport, etc.)
+5) a farmer action tip for better realization
+
+Return plain text ONLY in this exact format:
+English:
+- <line 1>
+- <line 2>
+- <line 3>
+- <line 4>
+- <line 5>
+
+Kannada:
+- <line 1>
+- <line 2>
+- <line 3>
+- <line 4>
+- <line 5>
+'''
+          : '''
 You are an agricultural market advisor for Indian farmers.
 
 Produce: $produceName
@@ -96,11 +131,12 @@ Kannada:
   Future<ProduceResult> identifyProduce(
     File imageFile,
     String district,
-    String state,
-  ) async {
+    String state, {
+    bool detailed = false,
+  }) async {
     final String? apiKey = dotenv.env['GEMINI_API_KEY'];
     if (apiKey == null || apiKey.isEmpty) {
-      throw NetworkException("API key not found");
+      throw NetworkException('API key not found');
     }
 
     final String currentMonth = DateFormat('MMMM').format(DateTime.now());
@@ -109,54 +145,91 @@ Kannada:
       final List<int> imageBytes = await imageFile.readAsBytes();
       final String base64Image = base64Encode(imageBytes);
 
-      final String prompt =
-          """
-      You are an expert agricultural quality grader and pricing assistant for Indian farmers.
+      final String prompt = detailed
+          ? '''
+You are an expert Indian agri produce grader, market assessor, and crop quality analyst.
 
-      Carefully examine this image and do two things:
-      1. Identify the fruit or vegetable
-      2. Assess its physical condition and grade it — then use that grade 
-         to calculate a fair price
+Analyze this image deeply and do all of the following:
+1. Identify the produce and, if possible, identify its variety/type
+   (example: banana type like Nendran/Yelakki/Cavendish if visually inferable).
+2. Assess quality condition with evidence:
+   - color uniformity
+   - bruises/blemishes/cuts/spots
+   - firmness and freshness cues
+   - ripeness stage
+   - spoilage signs (rot, fungal spots, blackening, shriveling)
+3. Assign grade A/B/C and explain why.
+4. Estimate realistic price range for $district, $state, India in $currentMonth.
 
-      Farmer location: $district, $state, India
-      Current month: $currentMonth
+PRICING INSTRUCTIONS:
+- Start from typical modal mandi pricing for this produce and season.
+- Adjust based on observed quality/ripeness/spoilage risk.
+- Ensure fair_price sits between min and max.
 
-      QUALITY GRADING INSTRUCTIONS:
-      Look carefully at the produce for:
-      - Color: is it vibrant and even, or dull/patchy/yellowing?
-      - Surface: any blemishes, bruises, spots, cracks, or damage?
-      - Firmness appearance: does it look firm and fresh or soft/wilting?
-      - Ripeness stage: is it unripe, fresh, ripe, overripe, or spoiled?
-      - Overall grade: Grade A (excellent), Grade B (good), Grade C (poor)
+Return ONLY valid JSON (no markdown, no extra text):
+{
+  "name_english": "Banana (Yelakki)",
+  "name_kannada": "ಬಾಳೆಹಣ್ಣು",
+  "confidence": 0.95,
+  "category": "fruit",
+  "ripeness": "ripe",
+  "grade": "A",
+  "grade_reasoning": "Detailed visual reasoning including variety clues, ripeness, and spoilage check",
+  "price_min_per_kg": 38,
+  "price_max_per_kg": 58,
+  "price_fair_per_kg": 47,
+  "price_reasoning": "Quality-adjusted mandi estimate for district/season",
+  "price_confidence": "high"
+}
 
-      PRICING INSTRUCTIONS:
-      - Start with the typical modal mandi price for this produce in 
-        $state, India in $currentMonth
-      - Apply quality multiplier:
-          Grade A = base price × 1.15
-          Grade B = base price × 1.00  
-          Grade C = base price × 0.80
-      - Factor in seasonal supply/demand for $currentMonth in $state
+If image is not a fruit/vegetable, return only:
+{"error":"not_produce"}
+'''
+          : '''
+You are an expert agricultural quality grader and pricing assistant for Indian farmers.
 
-      Respond ONLY with this exact JSON, no markdown, no extra text:
-      {
-        "name_english": "Tomato",
-        "name_kannada": "ಟೊಮೆಟೊ",
-        "confidence": 0.95,
-        "category": "vegetable",
-        "ripeness": "ripe",
-        "grade": "A",
-        "grade_reasoning": "Vibrant red color, firm appearance, no visible blemishes",
-        "price_min_per_kg": 18,
-        "price_max_per_kg": 28,
-        "price_fair_per_kg": 22,
-        "price_reasoning": "Grade A tomatoes in peak Karnataka season. Good color and firmness justify premium pricing.",
-        "price_confidence": "high"
-      }
+Carefully examine this image and do two things:
+1. Identify the fruit or vegetable
+2. Assess its physical condition and grade it, then use that grade to calculate a fair price
 
-      If the image does not contain a fruit or vegetable, respond with 
-      only: {"error": "not_produce"}
-      """;
+Farmer location: $district, $state, India
+Current month: $currentMonth
+
+QUALITY GRADING INSTRUCTIONS:
+Look carefully at the produce for:
+- Color: is it vibrant and even, or dull/patchy/yellowing?
+- Surface: any blemishes, bruises, spots, cracks, or damage?
+- Firmness appearance: does it look firm and fresh or soft/wilting?
+- Ripeness stage: is it unripe, fresh, ripe, overripe, or spoiled?
+- Overall grade: Grade A (excellent), Grade B (good), Grade C (poor)
+
+PRICING INSTRUCTIONS:
+- Start with the typical modal mandi price for this produce in $state, India in $currentMonth
+- Apply quality multiplier:
+    Grade A = base price x 1.15
+    Grade B = base price x 1.00
+    Grade C = base price x 0.80
+- Factor in seasonal supply/demand for $currentMonth in $state
+
+Respond ONLY with this exact JSON, no markdown, no extra text:
+{
+  "name_english": "Tomato",
+  "name_kannada": "ಟೊಮೆಟೊ",
+  "confidence": 0.95,
+  "category": "vegetable",
+  "ripeness": "ripe",
+  "grade": "A",
+  "grade_reasoning": "Vibrant red color, firm appearance, no visible blemishes",
+  "price_min_per_kg": 18,
+  "price_max_per_kg": 28,
+  "price_fair_per_kg": 22,
+  "price_reasoning": "Grade A tomatoes in peak Karnataka season. Good color and firmness justify premium pricing.",
+  "price_confidence": "high"
+}
+
+If the image does not contain a fruit or vegetable, respond with only:
+{"error": "not_produce"}
+''';
 
       final response = await http
           .post(
@@ -183,15 +256,13 @@ Kannada:
           .timeout(const Duration(seconds: 30));
 
       if (response.statusCode != 200) {
-        throw NetworkException("HTTP Status ${response.statusCode}");
+        throw NetworkException('HTTP Status ${response.statusCode}');
       }
 
       final Map<String, dynamic> data = jsonDecode(response.body);
       String text = data['candidates'][0]['content']['parts'][0]['text'];
 
-      // Strip markdown code blocks if present
       text = text.replaceAll('```json', '').replaceAll('```', '').trim();
-
       final Map<String, dynamic> resultJson = jsonDecode(text);
 
       if (resultJson.containsKey('error') &&
@@ -201,9 +272,9 @@ Kannada:
 
       return ProduceResult.fromJson(resultJson);
     } on SocketException {
-      throw NetworkException("No internet connection");
+      throw NetworkException('No internet connection');
     } on FormatException {
-      throw NetworkException("Failed to parse AI response");
+      throw NetworkException('Failed to parse AI response');
     } on NotProduceException {
       rethrow;
     } catch (e) {

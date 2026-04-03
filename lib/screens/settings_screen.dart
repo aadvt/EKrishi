@@ -23,7 +23,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final TextEditingController _districtController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
+  final Box _settingsBox = Hive.box('settings');
   String _selectedState = 'Karnataka';
+  bool _isAiModeEnabled = false;
   LocationResult? _currentLocation;
 
   final List<String> _indianStates = [
@@ -50,6 +52,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.initState();
     _phoneController.text = FarmerService().getPhoneNumber() ?? '';
     _nameController.text = FarmerService().getFullName() ?? '';
+    _isAiModeEnabled = _settingsBox.get('ai_mode_enabled', defaultValue: false);
     _loadCurrentLocation();
   }
 
@@ -458,6 +461,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                 ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            _SectionLabel(text: 'ANALYSIS MODE'),
+            _CardContainer(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.auto_awesome_rounded,
+                      size: 20,
+                      color: AppColors.accentGreen,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'AI Mode (Gemini Only)',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _isAiModeEnabled
+                                ? 'Directly uses Gemini for produce identification. Requires internet.'
+                                : 'Default mode: TFLite first, Gemini fallback when online.',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      value: _isAiModeEnabled,
+                      onChanged: (value) async {
+                        await _settingsBox.put('ai_mode_enabled', value);
+                        if (!mounted) return;
+                        setState(() => _isAiModeEnabled = value);
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 24),

@@ -53,6 +53,33 @@ class _ResultScreenState extends State<ResultScreen> {
     return lines.join('\n').trim();
   }
 
+  ({List<String> english, List<String> kannada})? _parseBilingualInsight(
+    String raw,
+  ) {
+    final match = RegExp(
+      r'English\s*:\s*([\s\S]*?)\s*Kannada\s*:\s*([\s\S]*)',
+      caseSensitive: false,
+    ).firstMatch(raw);
+
+    if (match == null) return null;
+
+    List<String> normalize(String block) {
+      return block
+          .split('\n')
+          .map((line) => line.trim())
+          .where((line) => line.isNotEmpty)
+          .map((line) => line.replaceFirst(RegExp(r'^[-•\d.)\s]+'), '').trim())
+          .where((line) => line.isNotEmpty)
+          .toList(growable: false);
+    }
+
+    final english = normalize(match.group(1) ?? '');
+    final kannada = normalize(match.group(2) ?? '');
+
+    if (english.isEmpty && kannada.isEmpty) return null;
+    return (english: english, kannada: kannada);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -218,11 +245,23 @@ class _ResultScreenState extends State<ResultScreen> {
         : _displayProduceResult.nameEnglish;
 
     String reasoning = _displayProduceResult.priceReasoning;
-    if (reasoning.contains('·')) {
-      reasoning = reasoning.split('·').first.trim();
-    }
-    if (reasoning.contains('.')) {
-      reasoning = '${reasoning.split('.').first.trim()}.';
+
+    final bilingual = _parseBilingualInsight(reasoning);
+    if (bilingual != null) {
+      final lines = lang == 'kn' ? bilingual.kannada : bilingual.english;
+      if (lines.isNotEmpty) {
+        reasoning = lines.join('. ').trim();
+        if (!reasoning.endsWith('.')) {
+          reasoning = '$reasoning.';
+        }
+      }
+    } else {
+      if (reasoning.contains('·')) {
+        reasoning = reasoning.split('·').first.trim();
+      }
+      if (reasoning.contains('.')) {
+        reasoning = '${reasoning.split('.').first.trim()}.';
+      }
     }
 
     final summary = TtsService().buildSummary(
