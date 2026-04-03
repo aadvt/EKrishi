@@ -161,7 +161,7 @@ export default async function smsLogHandler(req, res) {
   const normalizedPhone = farmer_phone.trim()
   const hasValidPricePerKg = parsedPricePerKg !== null && parsedPricePerKg > 0
   const normalizedPricePerKg = hasValidPricePerKg ? parsedPricePerKg : null
-  const quantityKg = hasValidPricePerKg ? parsedAmount / parsedPricePerKg : null
+  const quantityKg = hasValidPricePerKg ? parsedAmount / parsedPricePerKg : 0
 
   try {
     let farmerId
