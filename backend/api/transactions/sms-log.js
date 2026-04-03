@@ -69,9 +69,18 @@ export default async function smsLogHandler(req, res) {
     if (farmerResult.rows.length > 0) {
       farmerId = farmerResult.rows[0].farmer_id
     } else {
+      const fallbackDistrict =
+        typeof district === 'string' && district.trim().length > 0
+          ? district.trim()
+          : 'Unknown'
+
       const insertedFarmer = await pool.query(
-        'INSERT INTO farmers (phone_number) VALUES ($1) RETURNING farmer_id',
-        [normalizedPhone],
+        `
+          INSERT INTO farmers (phone_number, full_name, district)
+          VALUES ($1, $2, $3)
+          RETURNING farmer_id
+        `,
+        [normalizedPhone, 'Auto-created farmer', fallbackDistrict],
       )
 
       farmerId = insertedFarmer.rows[0].farmer_id
