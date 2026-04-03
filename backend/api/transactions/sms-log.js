@@ -81,6 +81,7 @@ async function insertSmsTransaction(client, payload) {
         $21,
         $22,
         $23,
+        $24,
         NULL,
         NULL,
         NULL,
