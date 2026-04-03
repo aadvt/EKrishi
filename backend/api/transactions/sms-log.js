@@ -24,6 +24,105 @@ async function insertSmsTransaction(client, payload) {
     saleChannel,
   } = payload
 
+  const includeSaleChannel =
+    typeof saleChannel === 'string' && saleChannel.trim().length > 0
+
+  if (includeSaleChannel) {
+    return client.query(
+      `
+        INSERT INTO transactions (
+          farmer_id,
+          buyer_id,
+          buyer_name_offline,
+          buyer_type_offline,
+          commodity_name,
+          quantity_kg,
+          price_per_kg,
+          fair_price_estimate,
+          sale_channel,
+          district,
+          payment_method,
+          payment_status,
+          upi_txid,
+          total_amount,
+          gst_rate,
+          is_inter_state,
+          cgst,
+          sgst,
+          igst,
+          cgst_amount,
+          sgst_amount,
+          igst_amount,
+          platform_fee,
+          platform_fee_gst,
+          gnn_flagged,
+          kafka_emitted_at,
+          listing_id,
+          bid_id,
+          mandi_id
+        )
+        VALUES (
+          $1,
+          NULL,
+          $2,
+          $3,
+          $4,
+          $5,
+          $6,
+          $7,
+          $8,
+          $9,
+          $10,
+          $11,
+          $12,
+          $13,
+          $14,
+          $15,
+          $16,
+          $17,
+          $18,
+          $19,
+          $20,
+          $21,
+          $22,
+          $23,
+          $24,
+          NULL,
+          NULL,
+          NULL,
+          NULL
+        )
+        RETURNING transaction_id
+      `,
+      [
+        farmerId,
+        buyerName,
+        'local_trader',
+        commodityName,
+        quantityKg,
+        pricePerKg,
+        pricePerKg,
+        saleChannel,
+        district,
+        'upi',
+        'released',
+        upiTxid,
+        amount,
+        0,
+        false,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        false,
+      ],
+    )
+  }
+
   return client.query(
     `
       INSERT INTO transactions (
@@ -35,7 +134,6 @@ async function insertSmsTransaction(client, payload) {
         quantity_kg,
         price_per_kg,
         fair_price_estimate,
-        sale_channel,
         district,
         payment_method,
         payment_status,
@@ -82,7 +180,6 @@ async function insertSmsTransaction(client, payload) {
         $21,
         $22,
         $23,
-        $24,
         NULL,
         NULL,
         NULL,
@@ -98,7 +195,6 @@ async function insertSmsTransaction(client, payload) {
       quantityKg,
       pricePerKg,
       pricePerKg,
-      saleChannel,
       district,
       'upi',
       'released',
@@ -232,10 +328,25 @@ export default async function smsLogHandler(req, res) {
           throw secondErr
         }
 
-        insertResult = await insertSmsTransaction(pool, {
-          ...insertPayload,
-          saleChannel: 'api',
-        })
+        try {
+          insertResult = await insertSmsTransaction(pool, {
+            ...insertPayload,
+            saleChannel: 'api',
+          })
+        } catch (thirdErr) {
+          const thirdEnumRejected =
+            typeof thirdErr?.message === 'string' &&
+            thirdErr.message.includes('invalid input value for enum sale_channel')
+
+          if (!thirdEnumRejected) {
+            throw thirdErr
+          }
+
+          insertResult = await insertSmsTransaction(pool, {
+            ...insertPayload,
+            saleChannel: null,
+          })
+        }
       }
     }
 
