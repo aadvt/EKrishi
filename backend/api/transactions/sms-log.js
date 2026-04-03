@@ -218,10 +218,25 @@ export default async function smsLogHandler(req, res) {
         throw insertErr
       }
 
-      insertResult = await insertSmsTransaction(pool, {
-        ...insertPayload,
-        saleChannel: 'sms',
-      })
+      try {
+        insertResult = await insertSmsTransaction(pool, {
+          ...insertPayload,
+          saleChannel: 'sms',
+        })
+      } catch (secondErr) {
+        const secondEnumRejected =
+          typeof secondErr?.message === 'string' &&
+          secondErr.message.includes('invalid input value for enum sale_channel')
+
+        if (!secondEnumRejected) {
+          throw secondErr
+        }
+
+        insertResult = await insertSmsTransaction(pool, {
+          ...insertPayload,
+          saleChannel: 'api',
+        })
+      }
     }
 
     return res.status(200).json({
