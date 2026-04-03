@@ -19,6 +19,27 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+subprojects {
+    if (name == "telephony") {
+        plugins.withId("com.android.library") {
+            val androidExt = extensions.findByName("android")
+            if (androidExt != null) {
+                val currentNamespace = runCatching {
+                    androidExt.javaClass.getMethod("getNamespace").invoke(androidExt) as? String
+                }.getOrNull()
+
+                if (currentNamespace.isNullOrBlank()) {
+                    runCatching {
+                        androidExt.javaClass
+                            .getMethod("setNamespace", String::class.java)
+                            .invoke(androidExt, "com.shounakmulay.telephony")
+                    }
+                }
+            }
+        }
+    }
+}
+
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }

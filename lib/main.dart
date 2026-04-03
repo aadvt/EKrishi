@@ -6,6 +6,8 @@ import 'screens/home_screen.dart';
 import 'utils/language_provider.dart';
 import 'constants/app_theme.dart';
 import 'models/scan_history.dart';
+import 'services/notification_service.dart';
+import 'services/sms_monitor_service.dart';
 import 'services/tflite_service.dart';
 import 'services/tts_service.dart';
 
@@ -27,10 +29,17 @@ void main() async {
   await Hive.openBox('cached_prices');
   await Hive.openBox('price_sync_meta');
   await Hive.openBox('farmer_profile');
+  await Hive.openBox('pending_sms_payments');
+
+  await NotificationService().initialize();
 
   // Load TFLite model once and keep interpreter in memory.
   await TfliteService().loadModel();
   await TtsService().initialize();
+
+  // Start SMS monitoring for payment detection.
+  // Don't await so app startup is not blocked.
+  SmsMonitorService().requestPermissionsAndStart().catchError((_) {});
 
   runApp(
     MultiProvider(
