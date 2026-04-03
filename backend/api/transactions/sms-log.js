@@ -34,6 +34,7 @@ async function insertSmsTransaction(client, payload) {
         quantity_kg,
         price_per_kg,
         fair_price_estimate,
+        sale_channel,
         district,
         payment_method,
         payment_status,
@@ -95,6 +96,7 @@ async function insertSmsTransaction(client, payload) {
       quantityKg,
       pricePerKg,
       pricePerKg,
+      'sms_detected',
       district,
       'upi',
       'released',
@@ -144,10 +146,10 @@ export default async function smsLogHandler(req, res) {
   const parsedAmount = toNumber(amount)
   const parsedPricePerKg = toNumber(price_per_kg)
 
-  if (parsedAmount === null || parsedAmount < 0) {
+  if (parsedAmount === null || parsedAmount <= 0) {
     return res.status(400).json({
       success: false,
-      message: 'amount must be a valid non-negative number',
+      message: 'amount must be a valid positive number',
     })
   }
 
@@ -160,8 +162,10 @@ export default async function smsLogHandler(req, res) {
 
   const normalizedPhone = farmer_phone.trim()
   const hasValidPricePerKg = parsedPricePerKg !== null && parsedPricePerKg > 0
-  const normalizedPricePerKg = hasValidPricePerKg ? parsedPricePerKg : null
-  const quantityKg = hasValidPricePerKg ? parsedAmount / parsedPricePerKg : 0
+  // DB has strict checks: quantity_kg > 0 and price_per_kg > 0.
+  // For SMS records without per-kg price, use quantity=1kg and price=total amount.
+  const normalizedPricePerKg = hasValidPricePerKg ? parsedPricePerKg : parsedAmount
+  const quantityKg = hasValidPricePerKg ? parsedAmount / parsedPricePerKg : 1
 
   try {
     let farmerId
