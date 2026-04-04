@@ -2,6 +2,36 @@ import pool from '../../src/db.js'
 
 const PHONE_REGEX = /^\d{10}$/
 
+function toNumber(value) {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function roundTo(num, digits = 2) {
+  if (!Number.isFinite(num)) {
+    return null
+  }
+  const factor = 10 ** digits
+  return Math.round(num * factor) / factor
+}
+
+function buildGnnExplanation(tx) {
+  const ratio = toNumber(tx.price_ratio)
+  const flagged = tx.gnn_flagged === true
+
+  if (!Number.isFinite(ratio) || ratio <= 0) {
+    return 'No fair-price benchmark found for this transaction.'
+  }
+
+  const ratioPercent = roundTo(ratio * 100, 1)
+
+  if (flagged) {
+    return `Flagged: paid ${ratioPercent}% of expected fair value.`
+  }
+
+  return `Normal: paid ${ratioPercent}% of expected fair value.`
+}
+
 export default async function transactionHistoryHandler(req, res) {
   const { farmer_phone, limit, offset } = req.query || {}
 
@@ -61,7 +91,10 @@ export default async function transactionHistoryHandler(req, res) {
 
     return res.status(200).json({
       success: true,
-      transactions: txResult.rows,
+      transactions: txResult.rows.map((tx) => ({
+        ...tx,
+        gnn_explanation: buildGnnExplanation(tx),
+      })),
       total: txResult.rows.length,
       farmer_phone: farmer_phone.trim(),
     })

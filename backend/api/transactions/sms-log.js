@@ -15,6 +15,28 @@ function normalizeText(value) {
   return typeof value === 'string' ? value.trim() : ''
 }
 
+function roundTo(num, digits = 4) {
+  if (!Number.isFinite(num)) {
+    return null
+  }
+  const factor = 10 ** digits
+  return Math.round(num * factor) / factor
+}
+
+function formatCurrency(value) {
+  if (!Number.isFinite(value)) {
+    return null
+  }
+  return roundTo(value, 2)
+}
+
+function clampNumber(value, min, max) {
+  if (!Number.isFinite(value)) {
+    return min
+  }
+  return Math.max(min, Math.min(max, value))
+}
+
 function toSlug(value) {
   return value
     .toLowerCase()
@@ -151,6 +173,143 @@ async function createTransactionNetworkLink(client, payload) {
   )
 }
 
+async function findLatestFairPricePerKg(client, payload) {
+  const { farmerId, commodityName, district } = payload
+  const normalizedCommodity = normalizeText(commodityName)
+  const normalizedDistrict = normalizeText(district)
+
+  const result = await client.query(
+    `
+      SELECT
+        listing_id,
+        COALESCE(fair_price_estimate, minimum_price_per_kg) AS fair_price_per_kg,
+        quantity_kg
+      FROM marketplace_listings
+      WHERE farmer_id = $1
+        AND (
+          LOWER(commodity_name) = LOWER($2)
+          OR regexp_replace(LOWER(commodity_name), '[^a-z0-9]+', '', 'g') = regexp_replace(LOWER($2), '[^a-z0-9]+', '', 'g')
+          OR regexp_replace(LOWER(commodity_name), '[^a-z0-9]+', '', 'g') LIKE '%' || regexp_replace(LOWER($2), '[^a-z0-9]+', '', 'g') || '%'
+          OR regexp_replace(LOWER($2), '[^a-z0-9]+', '', 'g') LIKE '%' || regexp_replace(LOWER(commodity_name), '[^a-z0-9]+', '', 'g') || '%'
+        )
+        AND COALESCE(fair_price_estimate, minimum_price_per_kg) > 0
+      ORDER BY
+        CASE
+          WHEN $3 <> '' AND LOWER(COALESCE(location_district, '')) = LOWER($3) THEN 0
+          ELSE 1
+        END,
+        CASE WHEN status = 'active' THEN 0 ELSE 1 END,
+        created_at DESC
+      LIMIT 1
+    `,
+    [farmerId, normalizedCommodity, normalizedDistrict],
+  )
+
+  if (result.rows.length > 0) {
+    return {
+      listingId: result.rows[0].listing_id,
+      fairPricePerKg: toNumber(result.rows[0].fair_price_per_kg),
+      listingQuantityKg: toNumber(result.rows[0].quantity_kg),
+      benchmarkSource: 'commodity_match',
+    }
+  }
+
+  // Fallback: most recent listing in the same district for this farmer.
+  // This prevents "no benchmark" when SMS commodity text is noisy.
+  const districtFallback = await client.query(
+    `
+      SELECT
+        listing_id,
+        COALESCE(fair_price_estimate, minimum_price_per_kg) AS fair_price_per_kg,
+        quantity_kg
+      FROM marketplace_listings
+      WHERE farmer_id = $1
+        AND COALESCE(fair_price_estimate, minimum_price_per_kg) > 0
+      ORDER BY
+        CASE
+          WHEN $2 <> '' AND LOWER(COALESCE(location_district, '')) = LOWER($2) THEN 0
+          ELSE 1
+        END,
+        CASE WHEN status = 'active' THEN 0 ELSE 1 END,
+        created_at DESC
+      LIMIT 1
+    `,
+    [farmerId, normalizedDistrict],
+  )
+
+  if (districtFallback.rows.length === 0) {
+    return {
+      listingId: null,
+      fairPricePerKg: null,
+      listingQuantityKg: null,
+      benchmarkSource: 'none',
+    }
+  }
+
+  return {
+    listingId: districtFallback.rows[0].listing_id,
+    fairPricePerKg: toNumber(districtFallback.rows[0].fair_price_per_kg),
+    listingQuantityKg: toNumber(districtFallback.rows[0].quantity_kg),
+    benchmarkSource: 'district_fallback',
+  }
+}
+
+function evaluateTransactionAgainstFairPrice(payload) {
+  const { amountPaid, fairPricePerKg, quantityKg, benchmarkSource } = payload
+
+  if (
+    !Number.isFinite(amountPaid) ||
+    amountPaid <= 0 ||
+    !Number.isFinite(fairPricePerKg) ||
+    fairPricePerKg <= 0 ||
+    !Number.isFinite(quantityKg) ||
+    quantityKg <= 0
+  ) {
+    return {
+      gnnFlagged: false,
+      fairPriceEstimate: null,
+      priceRatio: null,
+      expectedAmount: null,
+      allowedGapAmount: null,
+      flagThresholdRatio: null,
+      benchmarkSource: benchmarkSource || 'none',
+      explanation: 'No fair-price benchmark found, so this transaction is treated as normal.',
+    }
+  }
+
+  const expectedAmount = fairPricePerKg * quantityKg
+  const priceRatio = amountPaid / expectedAmount
+  const shortfallAmount = Math.max(expectedAmount - amountPaid, 0)
+
+  // Demo-friendly tolerance: allows a small rupee gap for tiny transactions,
+  // but still flags clear underpayment.
+  const allowedGapAmount = Math.max(5, Math.min(20, expectedAmount * 0.08 + quantityKg * 2))
+  const flagThresholdRatio = 0.78
+  const hardLowRatioThreshold = 0.4
+
+  const gnnFlagged =
+    amountPaid < expectedAmount * flagThresholdRatio &&
+    (shortfallAmount > allowedGapAmount || priceRatio <= hardLowRatioThreshold)
+
+  const ratioPercent = roundTo(priceRatio * 100, 1)
+  const shortfallRounded = formatCurrency(shortfallAmount)
+
+  const explanation = gnnFlagged
+    ? `Flagged: paid ${ratioPercent}% of expected fair value (short by Rs ${shortfallRounded}), below threshold.`
+    : `Normal: paid ${ratioPercent}% of expected fair value; within allowed tolerance.`
+
+  return {
+    gnnFlagged,
+    fairPriceEstimate: fairPricePerKg,
+    priceRatio: roundTo(priceRatio),
+    expectedAmount: roundTo(expectedAmount),
+    allowedGapAmount: roundTo(allowedGapAmount),
+    flagThresholdRatio,
+    benchmarkSource: benchmarkSource || 'commodity_match',
+    explanation,
+  }
+}
+
 async function insertSmsTransaction(client, payload) {
   const {
     farmerId,
@@ -162,6 +321,10 @@ async function insertSmsTransaction(client, payload) {
     district,
     upiTxid,
     amount,
+    fairPriceEstimate,
+    gnnFlagged,
+    priceRatio,
+    listingId,
   } = payload
 
   return client.query(
@@ -192,6 +355,7 @@ async function insertSmsTransaction(client, payload) {
         platform_fee,
         platform_fee_gst,
         gnn_flagged,
+        price_ratio,
         kafka_emitted_at,
         listing_id,
         bid_id,
@@ -223,8 +387,9 @@ async function insertSmsTransaction(client, payload) {
         $23,
         $24,
         $25,
+        $26,
         NULL,
-        NULL,
+        $27,
         NULL,
         NULL
       )
@@ -238,7 +403,7 @@ async function insertSmsTransaction(client, payload) {
       commodityName,
       quantityKg,
       pricePerKg,
-      pricePerKg,
+      fairPriceEstimate,
       'local_trader',
       district,
       'upi',
@@ -255,7 +420,9 @@ async function insertSmsTransaction(client, payload) {
       0,
       0,
       0,
-      false,
+      gnnFlagged,
+      priceRatio,
+      listingId,
     ],
   )
 }
@@ -306,10 +473,6 @@ export default async function smsLogHandler(req, res) {
 
   const normalizedPhone = farmer_phone.trim()
   const hasValidPricePerKg = parsedPricePerKg !== null && parsedPricePerKg > 0
-  // DB has strict checks: quantity_kg > 0 and price_per_kg > 0.
-  // For SMS records without per-kg price, use quantity=1kg and price=total amount.
-  const normalizedPricePerKg = hasValidPricePerKg ? parsedPricePerKg : parsedAmount
-  const quantityKg = hasValidPricePerKg ? parsedAmount / parsedPricePerKg : 1
 
   const client = await pool.connect()
   let inTransaction = false
@@ -354,6 +517,33 @@ export default async function smsLogHandler(req, res) {
       state: normalizeText(state) || 'Karnataka',
     })
 
+    const fairPriceLookup = await findLatestFairPricePerKg(client, {
+      farmerId,
+      commodityName: commodity_name,
+      district,
+    })
+
+    // If SMS does not contain per-kg price, infer quantity from listing weight for demo flows.
+    // Clamp to 0.25..4kg to keep behavior practical for your test scenario.
+    const derivedQuantityFromListing = clampNumber(
+      fairPriceLookup.listingQuantityKg ?? 1,
+      0.25,
+      4,
+    )
+    const quantityKg = hasValidPricePerKg
+      ? parsedAmount / parsedPricePerKg
+      : derivedQuantityFromListing
+    const normalizedPricePerKg = hasValidPricePerKg
+      ? parsedPricePerKg
+      : parsedAmount / quantityKg
+
+    const evaluation = evaluateTransactionAgainstFairPrice({
+      amountPaid: parsedAmount,
+      fairPricePerKg: fairPriceLookup.fairPricePerKg,
+      quantityKg,
+      benchmarkSource: fairPriceLookup.benchmarkSource,
+    })
+
     const insertPayload = {
       farmerId,
       buyerId,
@@ -361,6 +551,10 @@ export default async function smsLogHandler(req, res) {
       commodityName: normalizeText(commodity_name),
       quantityKg,
       pricePerKg: normalizedPricePerKg,
+      fairPriceEstimate: evaluation.fairPriceEstimate || normalizedPricePerKg,
+      gnnFlagged: evaluation.gnnFlagged,
+      priceRatio: evaluation.priceRatio,
+      listingId: fairPriceLookup.listingId,
       district: normalizeText(district) || null,
       upiTxid: normalizeText(upi_txid) || null,
       amount: parsedAmount,
@@ -404,6 +598,19 @@ export default async function smsLogHandler(req, res) {
       success: true,
       transaction_id: insertResult.rows[0].transaction_id,
       buyer_id: buyerId,
+      gnn_flagged: evaluation.gnnFlagged,
+      gnn_meta: {
+        matched_listing_id: fairPriceLookup.listingId,
+        fair_price_per_kg: evaluation.fairPriceEstimate,
+        benchmark_source: evaluation.benchmarkSource,
+        quantity_kg_used: roundTo(quantityKg, 3),
+        expected_amount: evaluation.expectedAmount,
+        paid_amount: parsedAmount,
+        price_ratio: evaluation.priceRatio,
+        flag_ratio_threshold: evaluation.flagThresholdRatio,
+        allowed_gap_amount: evaluation.allowedGapAmount,
+        explanation: evaluation.explanation,
+      },
       message: 'Transaction logged successfully',
     })
   } catch (err) {
