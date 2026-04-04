@@ -323,7 +323,6 @@ async function insertSmsTransaction(client, payload) {
     amount,
     fairPriceEstimate,
     gnnFlagged,
-    priceRatio,
     listingId,
   } = payload
 
@@ -355,7 +354,6 @@ async function insertSmsTransaction(client, payload) {
         platform_fee,
         platform_fee_gst,
         gnn_flagged,
-        price_ratio,
         kafka_emitted_at,
         listing_id,
         bid_id,
@@ -387,9 +385,8 @@ async function insertSmsTransaction(client, payload) {
         $23,
         $24,
         $25,
-        $26,
         NULL,
-        $27,
+        $26,
         NULL,
         NULL
       )
@@ -421,7 +418,6 @@ async function insertSmsTransaction(client, payload) {
       0,
       0,
       gnnFlagged,
-      priceRatio,
       listingId,
     ],
   )
