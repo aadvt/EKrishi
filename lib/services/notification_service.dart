@@ -151,7 +151,9 @@ class NotificationService {
     final Map<String, dynamic> payload = Map<String, dynamic>.from(
       pendingData as Map,
     );
-    final bool logged = await TransactionLogService().logSmsTransaction(payload);
+    final bool logged = await TransactionLogService().logSmsTransaction(
+      payload,
+    );
     if (logged) {
       await box.delete(pendingKey);
       debugPrint('Notification confirmed and transaction logged: $pendingKey');
