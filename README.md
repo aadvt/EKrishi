@@ -1,4 +1,4 @@
-# E-Krishi
+# E-Krishi  
 
 E-Krishi is an AI-powered agricultural support mobile application designed to help farmers identify their produce and understand localized market prices. The application combines on-device image recognition, GPS-based location services, market price estimation, and offline caching to remain useful in regions with limited connectivity.
 
