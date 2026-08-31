@@ -2,7 +2,7 @@
 
 E-Krishi is an AI-powered agricultural support mobile application designed to help farmers identify their produce and understand localized market prices. The application combines on-device image recognition, GPS-based location services, market price estimation, and offline caching to remain useful in regions with limited connectivity.
 
-![sus](ekrishi.png)
+![sus](ekrishi.jpg)
 
 The mobile application is built with Flutter and forms one part of a larger agricultural support ecosystem that also includes a farmer marketplace and an AI voice assistant for keypad-phone users.
 
